@@ -29,6 +29,7 @@ def sinotrack_position_json(parts):
     altitude = float(parts[13])
     speed = float(parts[9])
     course = float(parts[10])
+    distance_since_last = float(parts[15])
 
     # Crear el diccionario con los campos especificados
     result = {
@@ -43,6 +44,7 @@ def sinotrack_position_json(parts):
         "altitude": altitude,
         "speed": speed,
         "course": course,
+        "distance": distance_since_last,
     }
 
     # Convertir el diccionario a JSON
@@ -52,19 +54,19 @@ def sinotrack_position_json(parts):
 
 def tcp_to_json(port, data):
     if port == 6001:
-        return data
+        print(f"{port}:{data}")
     elif port == 6013:
-        print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        print(f"Received data from TCP port {port}: {data}")
         parts = data.split(",")
         if parts[0] == "*HQ":
             type = "position"
             data_json = json.loads(sinotrack_position_json(parts))
-            asyncio.run(broadcast(data_json["uniqueId"], type, data_json))
+            print(f"{port}:{data_json}")
+            # asyncio.run(broadcast(data_json["uniqueId"], type, data_json))
+        else:
+            print(f"{port}:{data}")
 
 
 def handle_tcp_client(conn, addr):
-    print(f"Connection established by {addr}")
     while True:
         data = conn.recv(1024)
         if not data:
