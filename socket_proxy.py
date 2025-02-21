@@ -68,18 +68,24 @@ def listen_for_data():
         try:
             # Recibir los datos
             while True:
-                raw_data = client_socket.recv(1024)  # Recibe hasta 1024 bytes
-                if not raw_data:
-                    break  # Si no hay más datos, se cierra la conexión
+                data = client_socket.recv(1024)  # Recibe hasta 1024 bytes
+                if not data:
+                    break
+                try:
+                    received_json = json.loads(data.decode("utf-8"))
+                    port = received_json["port"]
+                    message_data = received_json["data"]
+                    
+                    if port == 6013:
+                        # Procesar los datos y convertir a JSON
+                        json_data = parse_sinotrack_data(message_data)
 
-                # Imprimir los datos crudos recibidos
-                print(f"Datos crudos recibidos: {raw_data.decode('utf-8')}")
-
-                # Procesar los datos y convertir a JSON
-                json_data = parse_sinotrack_data(raw_data)
-
-                # Imprimir el JSON
-                print(f"Datos convertidos a JSON: {json_data}")
+                        # Imprimir el JSON
+                        print(json_data)
+                    else:
+                        print(f"{port}: {message_data}")
+                except json.JSONDecodeError as e:
+                    print(f"Error al decodificar JSON: {e}")
 
         except Exception as e:
             print(f"Error al recibir datos: {e}")
