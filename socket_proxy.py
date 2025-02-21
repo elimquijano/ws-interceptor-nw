@@ -8,7 +8,7 @@ RAW_DATA_PORT = 7005
 def parse_sinotrack_data(raw_data):
     try:
         # Limpiar la cadena y eliminar el carácter de byte (b'...')
-        data = raw_data.decode('utf-8').strip()
+        data = raw_data.strip()
 
         # Asegurarnos que la cadena comience con '*HQ' y terminamos con '#'
         if not data.startswith('*HQ') or not data.endswith('#'):
