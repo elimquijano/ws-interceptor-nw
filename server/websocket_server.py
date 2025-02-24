@@ -1,6 +1,5 @@
 import asyncio
 import websockets
-from urllib.parse import urlparse, parse_qs
 from .utils import authenticate_client, clients
 
 
@@ -30,4 +29,7 @@ async def main():
 
 
 def start_websocket_server():
-    asyncio.run(main())
+    try:
+        asyncio.get_running_loop().create_task(main())
+    except RuntimeError:
+        asyncio.run(main())
