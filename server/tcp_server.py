@@ -210,7 +210,7 @@ def parse_gps103_data(raw_data):
         data['type'] = 'over speed alarm'
     elif command == 'stockade':
         data['type'] = 'geo-fence alarm'
-    elif command == 'acc alarm':
+    elif command == 'ac alarm':
         data['type'] = 'ACC alarm'
     elif command == 'accident alarm':
         data['type'] = 'accident alarm'
