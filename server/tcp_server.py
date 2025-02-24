@@ -481,7 +481,7 @@ def tcp_to_json(port, data):
     elif port == 6013:
         #print(f"port: {port}, data: {data}")
         data_json = parse_h02_data(data)
-        #print(data_json)
+        print(data_json)
         # asyncio.run(broadcast(data_json["uniqueId"], type, data_json))
 
 def handle_tcp_client(conn, addr):
