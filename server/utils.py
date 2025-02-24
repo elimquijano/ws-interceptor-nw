@@ -46,8 +46,6 @@ def login(username, password):
         return None
 
 async def broadcast(unique_id, type, message_data):
-    print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    print(f"Broadcasting message to {unique_id} of type {type}")
     for client_id, client_info in clients.items():
         devices = client_info["devices"]
         for device in devices:

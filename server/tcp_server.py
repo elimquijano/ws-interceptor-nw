@@ -391,11 +391,15 @@ def tcp_to_json(port, data):
         #print(data_json)
         # asyncio.run(broadcast(data_json["imei"], type, data_json))
     elif port == 6013:
-        pass
-        #print(f"port: {port}, data: {data}")
         data_json = parse_h02_data(data)
-        print(data_json)
-        # asyncio.run(broadcast(data_json["uniqueId"], type, data_json))
+        if data_json["type"] == "real-time location":
+            type = "location"
+        elif data_json["type"] == "device alarm":
+            type = "event"
+        else:
+            type = None
+        if type:
+            asyncio.run(broadcast(data_json["data"]["imei"], type, data_json["data"]))
 
 def handle_tcp_client(conn, addr):
     while True:
