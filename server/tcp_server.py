@@ -194,95 +194,160 @@ def parse_h02_data(raw_data):
 def parse_gps103_data(raw_data):
     # Dividir el string en partes
     parts = raw_data.strip().split(',')
-
+    
     # Inicializar un diccionario para almacenar la información
     data = {}
-
-    # Check if this is the new format (starts with "imei:")
-    if parts[0].startswith('imei:'):
-        # Extract the IMEI from the first part
-        imei = parts[0].replace('imei:', '')
-        # Adjust parts list to match the expected format
-        adjusted_parts = [imei] + parts[1:]
-        parts = adjusted_parts
-
-    # Determinar el tipo de evento
-    command = parts[1] if len(parts) > 1 else "unknown"
-    print(f"command: {command}")
     
-    # Determine event type (this part remains the same)
-    if command == 'A':
-        data['type'] = 'Log on request'
-    elif command == 'help me':
-        data['type'] = 'SOS alarm'
-    elif command == 'low battery':
-        data['type'] = 'low battery alarm'
-    elif command == 'move':
-        data['type'] = 'movement alarm'
-    elif command == 'speed':
-        data['type'] = 'over speed alarm'
-    elif command == 'stockade':
-        data['type'] = 'geo-fence alarm'
-    elif command == 'ac alarm':
-        data['type'] = 'ACC alarm'
-    elif command == 'accident alarm':
-        data['type'] = 'accident alarm'
-    elif command == 'sensor alarm':
-        data['type'] = 'shock sensor alarm'
-    elif command == 'door alarm':
-        data['type'] = 'door alarm'
-    elif command == 'oil':
-        data['type'] = 'oil leak/oil theft alarm'
-    elif command == 'DTC':
-        data['type'] = 'vehicle fault notification'
-    elif command == 'service':
-        data['type'] = 'vehicle maintenance notification'
-    elif command == '001':
-        data['type'] = 'location information'
-    # ... remaining command type checks remain the same ...
+    # Extract IMEI from the first part (handling the "imei:" prefix)
+    if parts[0].startswith('imei:'):
+        data['imei'] = parts[0].replace('imei:', '')
     else:
-        data['type'] = 'unknown'
-
-    # Try to extract data based on the format provided in your example
-    try:
-        # Format appears to be: imei:NUMBER,COMMAND,DATE,BATTERY%,F,TIME,GPS_VALID,LAT,LAT_DIR,LON,LON_DIR,...
-        if data['type'] == 'ACC alarm' and len(parts) >= 12:
-            data['data'] = {
-                'imei': parts[0],
-                'time': parts[2],  # Original timestamp format
-                'battery_percentage': parts[3],
-                'flag': parts[4],  # 'F' value that caused the error
-                'time_gps': parts[5],
-                'gps_valid': parts[6],
-                'latitude': parts[7],  # Keep as string to avoid parsing errors
-                'latitude_direction': parts[8],
-                'longitude': parts[9],  # Keep as string to avoid parsing errors
-                'longitude_direction': parts[10],
-            }
-            
-            # Try to parse latitude and longitude if possible
-            try:
-                if parts[7] and parts[7] != "":
-                    data['data']['latitude_decimal'] = float(parts[7][:2]) + float(parts[7][2:]) / 60
-                if parts[9] and parts[9] != "":
-                    data['data']['longitude_decimal'] = float(parts[9][:3]) + float(parts[9][3:]) / 60
-            except (ValueError, IndexError):
-                # If conversion fails, keep the original string values only
-                pass
-                
-        # If the format doesn't match any known pattern, store all parts as raw data
+        data['imei'] = parts[0]
+    
+    # Determinar el tipo de evento
+    if len(parts) > 1:
+        command = parts[1]
+        
+        # Map command to event type
+        event_types = {
+            'help me': 'SOS alarm',
+            'low battery': 'low battery alarm',
+            'move': 'movement alarm',
+            'speed': 'over speed alarm',
+            'stockade': 'geo-fence alarm',
+            'ac alarm': 'power off alarm',
+            'door alarm': 'door alarm',
+            'sensor alarm': 'shock sensor alarm',
+            'acc alarm': 'ACC alarm',
+            'accident alarm': 'accident alarm',
+            'bonnet alarm': 'bonnet alarm',
+            'footbrake alarm': 'footbrake alarm',
+            'oil': 'oil leak/oil theft alarm',
+            'oil1': 'oil 1 alarm',
+            'oil2': 'oil 2 alarm',
+            '001': 'location information',
+            '101': 'track upon time interval',
+            '103': 'track upon distance interval'
+        }
+        
+        # Special case for temperature alarm
+        if command.startswith('T:'):
+            data['event_type'] = 'temperature alarm'
+            data['temperature'] = command.replace('T:', '')
         else:
-            data['data'] = {'raw_parts': parts}
+            data['event_type'] = event_types.get(command, 'unknown')
             
-    except Exception as e:
-        # If there's any error in parsing, store raw data and the error
-        data['error'] = str(e)
-        data['raw_data'] = raw_data
-        data['parts'] = parts
-
-    # Convertir el diccionario a JSON
-    json_data = json.dumps(data, indent=4)
-    return json_data
+            # Extract oil percentage for oil alarm
+            if command == 'oil' and len(parts) > 2 and parts[2]:
+                try:
+                    data['oil_percentage'] = float(parts[2])
+                except ValueError:
+                    pass
+    else:
+        data['event_type'] = 'unknown'
+    
+    # Parse datetime (format: DDMMYYHHMM)
+    if len(parts) > 2 and parts[2] and len(parts[2]) >= 10:
+        try:
+            date_str = parts[2]
+            # Parse DDMMYYHHMM format to datetime
+            dt = datetime.strptime(date_str, '%d%m%y%H%M')
+            # Format as YYYY-MM-DD HH:MM:SS
+            data['datetime'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            data['datetime'] = parts[2]  # Keep original if parsing fails
+    
+    # Parse coordinates
+    # Format: DDDMM.MMMM,N/S for latitude and DDDMM.MMMM,E/W for longitude
+    lat_index = None
+    lon_index = None
+    
+    # Find indexes for latitude and longitude based on common patterns
+    for i in range(len(parts)):
+        if i + 1 < len(parts) and parts[i+1] in ['N', 'S']:
+            lat_index = i
+        if i + 1 < len(parts) and parts[i+1] in ['E', 'W']:
+            lon_index = i
+    
+    # Parse latitude if found
+    if lat_index is not None and lat_index + 1 < len(parts):
+        try:
+            lat_str = parts[lat_index]
+            lat_dir = parts[lat_index + 1]
+            
+            # Convert from DDMM.MMMM to decimal degrees
+            lat_deg = float(lat_str[:2])
+            lat_min = float(lat_str[2:])
+            lat_decimal = lat_deg + (lat_min / 60)
+            
+            # Apply direction
+            if lat_dir == 'S':
+                lat_decimal = -lat_decimal
+                
+            data['latitude'] = round(lat_decimal, 6)
+        except (ValueError, IndexError):
+            pass
+    
+    # Parse longitude if found
+    if lon_index is not None and lon_index + 1 < len(parts):
+        try:
+            lon_str = parts[lon_index]
+            lon_dir = parts[lon_index + 1]
+            
+            # Convert from DDDMM.MMMM to decimal degrees
+            lon_deg = float(lon_str[:3])
+            lon_min = float(lon_str[3:])
+            lon_decimal = lon_deg + (lon_min / 60)
+            
+            # Apply direction
+            if lon_dir == 'W':
+                lon_decimal = -lon_decimal
+                
+            data['longitude'] = round(lon_decimal, 6)
+        except (ValueError, IndexError):
+            pass
+    
+    # Parse speed if available (typically after longitude direction)
+    if lon_index is not None and lon_index + 2 < len(parts):
+        try:
+            data['speed'] = float(parts[lon_index + 2])
+        except (ValueError, IndexError):
+            pass
+    
+    # Parse ACC state (common in location messages)
+    for i in range(len(parts)):
+        if i+3 < len(parts) and parts[i].endswith('%') and parts[i+1].endswith('%'):
+            try:
+                # ACC state is typically after oil percentages
+                acc_state = int(parts[i+2])
+                data['acc_state'] = 'ON' if acc_state == 1 else 'OFF'
+            except (ValueError, IndexError):
+                pass
+    
+    # Parse additional information based on event type
+    if data['event_type'] == 'oil leak/oil theft alarm' and 'oil_percentage' not in data:
+        # Try to find oil percentage in other positions
+        for part in parts:
+            if part.endswith('%'):
+                try:
+                    data['oil_percentage'] = float(part.replace('%', ''))
+                    break
+                except ValueError:
+                    pass
+    
+    # For dual fuel sensor alarms
+    if data['event_type'] in ['oil 1 alarm', 'oil 2 alarm']:
+        # Try to find both oil percentages
+        for i in range(len(parts)):
+            if parts[i].endswith('%') and i+1 < len(parts) and parts[i+1].endswith('%'):
+                try:
+                    data['oil1_percentage'] = float(parts[i].replace('%', ''))
+                    data['oil2_percentage'] = float(parts[i+1].replace('%', ''))
+                    break
+                except ValueError:
+                    pass
+    
+    return data
 
 
 def tcp_to_json(port, data):
@@ -293,10 +358,9 @@ def tcp_to_json(port, data):
         print(data_json)
         # asyncio.run(broadcast(data_json["imei"], type, data_json))
     elif port == 6013:
-        pass
         #print(f"port: {port}, data: {data}")
-        #data_json = parse_h02_data(data)
-        #print(data_json)
+        data_json = parse_h02_data(data)
+        print(data_json)
         # asyncio.run(broadcast(data_json["uniqueId"], type, data_json))
 
 def handle_tcp_client(conn, addr):
