@@ -200,7 +200,9 @@ def parse_gps103_data(raw_data):
     # Determinar el tipo de evento
     command = parts[1]
     print(f"command: {command}")
-    if command == 'help me':
+    if command == 'A':
+        data['type'] = 'Log on request'
+    elif command == 'help me':
         data['type'] = 'SOS alarm'
     elif command == 'low battery':
         data['type'] = 'low battery alarm'
@@ -310,6 +312,8 @@ def parse_gps103_data(raw_data):
         data['type'] = 'RFID'
     elif command == 'TPMS':
         data['type'] = 'tyre pressure monitoring'
+    elif command == 'status':
+        data['type'] = 'status information'
     else:
         data['type'] = 'unknown'
 
@@ -317,7 +321,7 @@ def parse_gps103_data(raw_data):
     if data['type'] in ['location information', 'SOS alarm', 'low battery alarm', 'movement alarm', 'over speed alarm', 'geo-fence alarm', 'ACC alarm', 'accident alarm', 'shock sensor alarm', 'door alarm', 'oil leak/oil theft alarm', 'vehicle fault notification', 'vehicle maintenance notification']:
         data['data'] = {
             'imei': parts[0],
-            'time': datetime.strptime(parts[2], '%H%M%S').strftime('%H:%M:%S'),
+            'time': datetime.strptime(parts[2], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
             'gps_valid': parts[3],
             'latitude': float(parts[4][:2]) + float(parts[4][2:]) / 60,
             'latitude_direction': parts[5],
@@ -325,7 +329,6 @@ def parse_gps103_data(raw_data):
             'longitude_direction': parts[7],
             'speed': float(parts[8]),
             'direction': float(parts[9]),
-            'date': datetime.strptime(parts[10], '%d%m%y').strftime('%Y-%m-%d'),
             'vehicle_status': parts[11],
             'oil_percentage_1': parts[12],
             'oil_percentage_2': parts[13],
@@ -335,7 +338,7 @@ def parse_gps103_data(raw_data):
         data['data'] = {
             'imei': parts[0],
             'command': parts[1],
-            'time': datetime.strptime(parts[2], '%H%M%S').strftime('%H:%M:%S'),
+            'time': datetime.strptime(parts[2], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
             'gps_valid': parts[3],
             'latitude': float(parts[4][:2]) + float(parts[4][2:]) / 60,
             'latitude_direction': parts[5],
@@ -343,7 +346,6 @@ def parse_gps103_data(raw_data):
             'longitude_direction': parts[7],
             'speed': float(parts[8]),
             'direction': float(parts[9]),
-            'date': datetime.strptime(parts[10], '%d%m%y').strftime('%Y-%m-%d'),
             'vehicle_status': parts[11],
             'oil_percentage_1': parts[12],
             'oil_percentage_2': parts[13],
@@ -353,7 +355,7 @@ def parse_gps103_data(raw_data):
         data['data'] = {
             'imei': parts[0],
             'command': parts[1],
-            'time': datetime.strptime(parts[2], '%H%M%S').strftime('%H:%M:%S'),
+            'time': datetime.strptime(parts[2], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
             'gps_valid': parts[3],
             'latitude': float(parts[4][:2]) + float(parts[4][2:]) / 60,
             'latitude_direction': parts[5],
@@ -361,7 +363,6 @@ def parse_gps103_data(raw_data):
             'longitude_direction': parts[7],
             'speed': float(parts[8]),
             'direction': float(parts[9]),
-            'date': datetime.strptime(parts[10], '%d%m%y').strftime('%Y-%m-%d'),
             'vehicle_status': parts[11],
             'oil_percentage_1': parts[12],
             'oil_percentage_2': parts[13],
@@ -372,7 +373,7 @@ def parse_gps103_data(raw_data):
             'imei': parts[0],
             'command': parts[1],
             'photo_data_amount': parts[2],
-            'time': datetime.strptime(parts[3], '%H%M%S').strftime('%H:%M:%S'),
+            'time': datetime.strptime(parts[3], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
             'phone_number': parts[4],
             'gps_valid': parts[5],
             'latitude': float(parts[6][:2]) + float(parts[6][2:]) / 60,
@@ -381,7 +382,6 @@ def parse_gps103_data(raw_data):
             'longitude_direction': parts[9],
             'speed': float(parts[10]),
             'direction': float(parts[11]),
-            'date': datetime.strptime(parts[12], '%d%m%y').strftime('%Y-%m-%d'),
             'vehicle_status': parts[13],
             'oil_percentage_1': parts[14],
             'oil_percentage_2': parts[15],
@@ -392,7 +392,7 @@ def parse_gps103_data(raw_data):
             'imei': parts[0],
             'command': parts[1],
             'order_no': parts[2],
-            'time': datetime.strptime(parts[3], '%H%M%S').strftime('%H:%M:%S'),
+            'time': datetime.strptime(parts[3], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
             'gps_valid': parts[4],
             'latitude': float(parts[5][:2]) + float(parts[5][2:]) / 60,
             'latitude_direction': parts[6],
@@ -400,7 +400,6 @@ def parse_gps103_data(raw_data):
             'longitude_direction': parts[8],
             'speed': float(parts[9]),
             'direction': float(parts[10]),
-            'date': datetime.strptime(parts[11], '%d%m%y').strftime('%Y-%m-%d'),
             'vehicle_status': parts[12],
             'oil_percentage_1': parts[13],
             'oil_percentage_2': parts[14],
@@ -411,7 +410,7 @@ def parse_gps103_data(raw_data):
             'imei': parts[0],
             'command': parts[1],
             'ad_code': parts[2],
-            'time': datetime.strptime(parts[3], '%H%M%S').strftime('%H:%M:%S'),
+            'time': datetime.strptime(parts[3], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
             'gps_valid': parts[4],
             'latitude': float(parts[5][:2]) + float(parts[5][2:]) / 60,
             'latitude_direction': parts[6],
@@ -419,7 +418,6 @@ def parse_gps103_data(raw_data):
             'longitude_direction': parts[8],
             'speed': float(parts[9]),
             'direction': float(parts[10]),
-            'date': datetime.strptime(parts[11], '%d%m%y').strftime('%Y-%m-%d'),
             'vehicle_status': parts[12],
             'oil_percentage_1': parts[13],
             'oil_percentage_2': parts[14],
@@ -430,7 +428,7 @@ def parse_gps103_data(raw_data):
             'imei': parts[0],
             'command': parts[1],
             'rfid_tag': parts[2],
-            'time': datetime.strptime(parts[3], '%H%M%S').strftime('%H:%M:%S'),
+            'time': datetime.strptime(parts[3], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
             'gps_valid': parts[4],
             'latitude': float(parts[5][:2]) + float(parts[5][2:]) / 60,
             'latitude_direction': parts[6],
@@ -438,7 +436,6 @@ def parse_gps103_data(raw_data):
             'longitude_direction': parts[8],
             'speed': float(parts[9]),
             'direction': float(parts[10]),
-            'date': datetime.strptime(parts[11], '%d%m%y').strftime('%Y-%m-%d'),
             'vehicle_status': parts[12],
             'oil_percentage_1': parts[13],
             'oil_percentage_2': parts[14],
@@ -448,7 +445,7 @@ def parse_gps103_data(raw_data):
         data['data'] = {
             'imei': parts[0],
             'command': parts[1],
-            'time': datetime.strptime(parts[2], '%H%M%S').strftime('%H:%M:%S'),
+            'time': datetime.strptime(parts[2], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
             'tyre_status': parts[3],
             'left_front_tyre_pressure': parts[4],
             'left_front_tyre_temperature': parts[5],
@@ -462,6 +459,28 @@ def parse_gps103_data(raw_data):
             'right_rear_tyre_pressure': parts[13],
             'right_rear_tyre_temperature': parts[14],
             'right_rear_tyre_status': parts[15]
+        }
+    elif data['type'] == 'status information':
+        data['data'] = {
+            'imei': parts[0],
+            'command': parts[1],
+            'status_code': parts[2],
+            'interval': parts[3],
+            'total_distance': parts[4],
+            'oil_mass': parts[5],
+            'temperature': parts[6],
+            'battery_level': parts[7],
+            'gps_signal': parts[8],
+            'gsm_signal': parts[9],
+            'move_alarm_status': parts[10],
+            'door_alarm_status': parts[11],
+            'acc_status': parts[12],
+            'defense_status': parts[13],
+            'gps_antenna_status': parts[14],
+            'gsm_antenna_status': parts[15],
+            'charging_status': parts[16],
+            'battery_status': parts[17],
+            'external_power_status': parts[18]
         }
     else:
         data['data'] = {}
