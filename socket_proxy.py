@@ -1,11 +1,18 @@
-import threading
-from server.websocket_server import start_websocket_server
-from server.tcp_server import start_tcp_server
+import asyncio
+from src.tcp.tcp_server import TCPServer
+from src.ws.ws_server import WebSocketServer
+
+async def main():
+    tcp_server = TCPServer()
+    ws_server = WebSocketServer()
+
+    try:
+        await asyncio.gather(
+            tcp_server.start(),
+            ws_server.start()
+        )
+    except Exception as e:
+        print(f"Error running servers: {e}")
 
 if __name__ == "__main__":
-    # Iniciar el servidor WebSocket en un hilo separado
-    websocket_thread = threading.Thread(target=start_websocket_server)
-    websocket_thread.start()
-
-    # Iniciar el servidor TCP en el hilo principal
-    start_tcp_server()
+    asyncio.run(main())
