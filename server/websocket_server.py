@@ -5,6 +5,7 @@ from .utils import authenticate_client, clients
 
 
 async def handle_client(websocket, path):
+    print("handle_client is being executed!")
     devices = await authenticate_client(websocket, path)
     if not devices:
         return
