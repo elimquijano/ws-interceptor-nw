@@ -73,50 +73,48 @@ def parse_h02_data(raw_data):
     # Extraer los datos según el tipo de evento
     if data['type'] in ['real-time location', 'location request', 'blind spots uploading', 'device alarm']:
         data['data'] = {
-            'terminal_no': parts[1],
+            'imei': parts[1],
             'time': datetime.strptime(parts[3], '%H%M%S').strftime('%H:%M:%S'),
             'data_valid_bit': parts[4],
             'latitude': float(parts[5][:2]) + float(parts[5][2:]) / 60,
-            'latitude_direction': parts[6],
             'longitude': float(parts[7][:3]) + float(parts[7][3:]) / 60,
-            'longitude_direction': parts[8],
             'speed': float(parts[9]),
-            'direction': float(parts[10]),
+            'course': float(parts[10]),
             'date': datetime.strptime(parts[11], '%d%m%y').strftime('%Y-%m-%d'),
             'vehicle_status': parts[12],
             'power_capacity': parts[13]
         }
     elif data['type'] == 'heartbeat packet':
         data['data'] = {
-            'terminal_no': parts[1]
+            'imei': parts[1]
         }
     elif data['type'] == 'cut-off oil & engine/recovery oil & engine':
         data['data'] = {
-            'terminal_no': parts[1],
+            'imei': parts[1],
             'time': datetime.strptime(parts[3], '%H%M%S').strftime('%H:%M:%S'),
             'ultimate_power_mode': parts[4],
             'cut_off_or_recovery': parts[5]
         }
     elif data['type'] == 'response to location request':
         data['data'] = {
-            'terminal_no': parts[1]
+            'imei': parts[1]
         }
     elif data['type'] == 'fortification' or data['type'] == 'fortification version II':
         data['data'] = {
-            'terminal_no': parts[1]
+            'imei': parts[1]
         }
     elif data['type'] == 'disarming' or data['type'] == 'disarming version II':
         data['data'] = {
-            'terminal_no': parts[1]
+            'imei': parts[1]
         }
     elif data['type'] == 'main number bind':
         data['data'] = {
-            'terminal_no': parts[1],
+            'imei': parts[1],
             'num_list': parts[3]
         }
     elif data['type'] == 'server setting':
         data['data'] = {
-            'terminal_no': parts[1],
+            'imei': parts[1],
             'index': parts[3],
             'ip': parts[4],
             'port': parts[5],
@@ -125,66 +123,66 @@ def parse_h02_data(raw_data):
         }
     elif data['type'] == 'terminal password setting':
         data['data'] = {
-            'terminal_no': parts[1],
+            'imei': parts[1],
             'old_password': parts[3],
             'new_password': parts[4]
         }
     elif data['type'] == 'interval setting':
         data['data'] = {
-            'terminal_no': parts[1],
+            'imei': parts[1],
             'interval': parts[3]
         }
     elif data['type'] == 'alarm setting':
         data['data'] = {
-            'terminal_no': parts[1],
+            'imei': parts[1],
             'key': parts[3],
             'type': parts[4]
         }
     elif data['type'] == 'device reboot':
         data['data'] = {
-            'terminal_no': parts[1]
+            'imei': parts[1]
         }
     elif data['type'] == 'reset to defaults':
         data['data'] = {
-            'terminal_no': parts[1],
+            'imei': parts[1],
             'time': datetime.strptime(parts[3], '%H%M%S').strftime('%H:%M:%S')
         }
     elif data['type'] == 'network access point':
         data['data'] = {
-            'terminal_no': parts[1],
+            'imei': parts[1],
             'name': parts[3],
             'user': parts[4],
             'pwd': parts[5]
         }
     elif data['type'] == 'answer mode':
         data['data'] = {
-            'terminal_no': parts[1],
+            'imei': parts[1],
             'operation': parts[3]
         }
     elif data['type'] == 'IMEI setting':
         data['data'] = {
-            'terminal_no': parts[1],
+            'imei': parts[1],
             'imei': parts[3],
             'time': datetime.strptime(parts[4], '%H%M%S').strftime('%H:%M:%S')
         }
     elif data['type'] == 'language setting':
         data['data'] = {
-            'terminal_no': parts[1],
+            'imei': parts[1],
             'language': parts[3],
             'time': datetime.strptime(parts[4], '%H%M%S').strftime('%H:%M:%S')
         }
     elif data['type'] == 'audio monitor':
         data['data'] = {
-            'terminal_no': parts[1],
+            'imei': parts[1],
             'time': datetime.strptime(parts[3], '%H%M%S').strftime('%H:%M:%S')
         }
     elif data['type'] == 'power saving mode setting':
         data['data'] = {
-            'terminal_no': parts[1]
+            'imei': parts[1]
         }
     elif data['type'] == 'query device information':
         data['data'] = {
-            'terminal_no': parts[1]
+            'imei': parts[1]
         }
     else:
         data['data'] = {}
