@@ -473,7 +473,7 @@ def parse_gps103_data(raw_data):
 def tcp_to_json(port, data):
     if port == 6001:
         #pass
-        print(f"port: {port}, data: {data}")
+        #print(f"port: {port}, data: {data}")
         data_json = parse_gps103_data(data)
         print(data_json)
         # asyncio.run(broadcast(data_json["imei"], type, data_json))
