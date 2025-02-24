@@ -71,7 +71,7 @@ def parse_h02_data(raw_data):
     if data['type'] in ['real-time location', 'location request', 'blind spots uploading', 'device alarm']:
         data['data'] = {
             'terminal_no': parts[1],
-            'time': datetime.strptime(parts[3], '%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
+            'time': datetime.strptime(parts[3], '%H%M%S').strftime('%H:%M:%S'),
             'data_valid_bit': parts[4],
             'latitude': float(parts[5][:2]) + float(parts[5][2:]) / 60,
             'latitude_direction': parts[6],
@@ -90,7 +90,7 @@ def parse_h02_data(raw_data):
     elif data['type'] == 'cut-off oil & engine/recovery oil & engine':
         data['data'] = {
             'terminal_no': parts[1],
-            'time': datetime.strptime(parts[3], '%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
+            'time': datetime.strptime(parts[3], '%H%M%S').strftime('%H:%M:%S'),
             'ultimate_power_mode': parts[4],
             'cut_off_or_recovery': parts[5]
         }
@@ -118,7 +118,7 @@ def parse_h02_data(raw_data):
             'ip': parts[4],
             'port': parts[5],
             'domain': parts[6],
-            'time': datetime.strptime(parts[7], '%H%M%S').strftime('%Y-%m-%d %H:%M:%S')
+            'time': datetime.strptime(parts[7], '%H%M%S').strftime('%H:%M:%S')
         }
     elif data['type'] == 'terminal password setting':
         data['data'] = {
@@ -144,7 +144,7 @@ def parse_h02_data(raw_data):
     elif data['type'] == 'reset to defaults':
         data['data'] = {
             'terminal_no': parts[1],
-            'time': datetime.strptime(parts[3], '%H%M%S').strftime('%Y-%m-%d %H:%M:%S')
+            'time': datetime.strptime(parts[3], '%H%M%S').strftime('%H:%M:%S')
         }
     elif data['type'] == 'network access point':
         data['data'] = {
@@ -162,18 +162,18 @@ def parse_h02_data(raw_data):
         data['data'] = {
             'terminal_no': parts[1],
             'imei': parts[3],
-            'time': datetime.strptime(parts[4], '%H%M%S').strftime('%Y-%m-%d %H:%M:%S')
+            'time': datetime.strptime(parts[4], '%H%M%S').strftime('%H:%M:%S')
         }
     elif data['type'] == 'language setting':
         data['data'] = {
             'terminal_no': parts[1],
             'language': parts[3],
-            'time': datetime.strptime(parts[4], '%H%M%S').strftime('%Y-%m-%d %H:%M:%S')
+            'time': datetime.strptime(parts[4], '%H%M%S').strftime('%H:%M:%S')
         }
     elif data['type'] == 'audio monitor':
         data['data'] = {
             'terminal_no': parts[1],
-            'time': datetime.strptime(parts[3], '%H%M%S').strftime('%Y-%m-%d %H:%M:%S')
+            'time': datetime.strptime(parts[3], '%H%M%S').strftime('%H:%M:%S')
         }
     elif data['type'] == 'power saving mode setting':
         data['data'] = {
