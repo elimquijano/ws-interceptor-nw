@@ -13,9 +13,11 @@ class TCPServer:
 
     async def tcp_to_json(self, port, data):
         if port == 6001:
+            print(f"{port}, {data}")
             data_dict = decode_gps103(data)
             print(data_dict)
         elif port == 6013:
+            print(f"{port}, {data}")
             data_dict = decode_h02(data)
             print(data_dict)
         return None
