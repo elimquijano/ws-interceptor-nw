@@ -3,8 +3,10 @@ import websockets
 from .utils import authenticate_client, clients
 
 
-async def handle_client(websocket, path):
+async def handle_client(websocket):  # Remove path parameter
     print("handle_client is being executed!")
+    # Get the path from websocket object
+    path = websocket.path
     devices = await authenticate_client(websocket, path)
     if not devices:
         return
@@ -23,13 +25,12 @@ async def handle_client(websocket, path):
 
 
 async def main():
-    async with websockets.serve(handle_client, "0.0.0.0", 7006):
-        print("WebSocket server listening on port 7006")
-        await asyncio.Future()  # run forever
+    server = await websockets.serve(handle_client, "0.0.0.0", 7006)
+    print("WebSocket server listening on port 7006")
+    await server.wait_closed()
 
 
 def start_websocket_server():
-    try:
-        asyncio.get_running_loop().create_task(main())
-    except RuntimeError:
-        asyncio.run(main())
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(main())
