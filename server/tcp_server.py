@@ -11,9 +11,6 @@ def parse_h02_data(raw_data):
 
     # Inicializar un diccionario para almacenar la información
     data = {}
-    
-    for i, j in enumerate(parts):
-        print(f"Index: {i}, Value: {j}")
 
     # Determinar el tipo de evento
     command = parts[2]
@@ -187,9 +184,7 @@ def parse_h02_data(raw_data):
     else:
         data['data'] = {}
 
-    # Convertir el diccionario a JSON
-    json_data = json.dumps(data, indent=4)
-    return json_data
+    return data
 
 
 def parse_gps103_data(raw_data):
@@ -386,13 +381,9 @@ def parse_gps103_data(raw_data):
 def tcp_to_json(port, data):
     if port == 6001:
         pass
-        #print(f"port: {port}, data: {data}")
-        #data_json = parse_gps103_data(data)
-        #print(data_json)
-        # asyncio.run(broadcast(data_json["imei"], type, data_json))
     elif port == 6013:
-        data_json = parse_h02_data(data)
-        asyncio.run(broadcast(data_json["data"]["imei"], data_json["type"], data_json["data"]))
+        data_dict = parse_h02_data(data)
+        asyncio.run(broadcast(data_dict["data"]["imei"], data_dict["type"], data_dict["data"]))
 
 def handle_tcp_client(conn, addr):
     while True:
