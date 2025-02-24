@@ -81,15 +81,7 @@ def parse_h02_data(raw_data):
             'direction': float(parts[10]),
             'date': datetime.strptime(parts[11], '%d%m%y').strftime('%Y-%m-%d'),
             'vehicle_status': parts[12],
-            'power_capacity': parts[13],
-            'mcc': parts[14],
-            'mnc': parts[15],
-            'lac1': parts[16],
-            'cid1': parts[17],
-            'lac2': parts[18],
-            'cid2': parts[19],
-            'lac3': parts[20],
-            'cid3': parts[21]
+            'power_capacity': parts[13]
         }
     elif data['type'] == 'heartbeat packet':
         data['data'] = {
@@ -481,13 +473,14 @@ def parse_gps103_data(raw_data):
 
 def tcp_to_json(port, data):
     if port == 6001:
-        print(f"port: {port}, data: {data}")
+        pass
+        #print(f"port: {port}, data: {data}")
         # data_json = parse_gps103_data(data)
         # print(data_json)
         # asyncio.run(broadcast(data_json["imei"], type, data_json))
     elif port == 6013:
-        print(f"port: {port}, data: {data}")
-        #data_json = parse_h02_data(data)
+        #print(f"port: {port}, data: {data}")
+        data_json = parse_h02_data(data)
         #print(data_json)
         # asyncio.run(broadcast(data_json["uniqueId"], type, data_json))
 
