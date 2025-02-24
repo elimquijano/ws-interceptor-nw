@@ -199,6 +199,7 @@ def parse_gps103_data(raw_data):
 
     # Determinar el tipo de evento
     command = parts[1]
+    print(f"command: {command}")
     if command == 'help me':
         data['type'] = 'SOS alarm'
     elif command == 'low battery':
