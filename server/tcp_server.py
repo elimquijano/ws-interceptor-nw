@@ -5,7 +5,6 @@ import asyncio
 from datetime import datetime, timedelta
 from .utils import broadcast
 
-
 def parse_h02_data(raw_data):
     # Dividir el string en partes
     parts = raw_data.strip().split(',')
@@ -490,7 +489,6 @@ def tcp_to_json(port, data):
         print(data_json)
         # asyncio.run(broadcast(data_json["uniqueId"], type, data_json))
 
-
 def handle_tcp_client(conn, addr):
     while True:
         data = conn.recv(1024)
@@ -507,7 +505,6 @@ def handle_tcp_client(conn, addr):
         except KeyError as e:
             print(f"Receiver: Missing key in JSON: {e}")
     conn.close()
-
 
 def start_tcp_server(port=7005):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
