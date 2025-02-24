@@ -190,6 +190,7 @@ def parse_h02_data(raw_data):
     json_data = json.dumps(data, indent=4)
     return json_data
 
+
 def parse_gps103_data(raw_data):
     # Dividir el string en partes
     parts = raw_data.strip().split(',')
@@ -199,6 +200,7 @@ def parse_gps103_data(raw_data):
 
     # Determinar el tipo de evento
     command = parts[1]
+    print(f"command: {command}")
     if command == 'A':
         data['type'] = 'Log on request'
     elif command == 'help me':
@@ -322,12 +324,12 @@ def parse_gps103_data(raw_data):
             'imei': parts[0],
             'time': datetime.strptime(parts[2], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
             'gps_valid': parts[3],
-            'latitude': float(parts[5][:2]) + float(parts[5][2:]) / 60,
-            'latitude_direction': parts[6],
-            'longitude': float(parts[7][:3]) + float(parts[7][3:]) / 60,
-            'longitude_direction': parts[8],
-            'speed': float(parts[9]),
-            'direction': float(parts[10]),
+            'latitude': float(parts[4][:2]) + float(parts[4][2:]) / 60,
+            'latitude_direction': parts[5],
+            'longitude': float(parts[6][:3]) + float(parts[6][3:]) / 60,
+            'longitude_direction': parts[7],
+            'speed': float(parts[8]),
+            'direction': parts[9],
             'date': datetime.strptime(parts[4], '%d%m%y').strftime('%Y-%m-%d'),
             'vehicle_status': parts[11],
             'oil_percentage_1': parts[12],
@@ -340,12 +342,12 @@ def parse_gps103_data(raw_data):
             'command': parts[1],
             'time': datetime.strptime(parts[2], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
             'gps_valid': parts[3],
-            'latitude': float(parts[5][:2]) + float(parts[5][2:]) / 60,
-            'latitude_direction': parts[6],
-            'longitude': float(parts[7][:3]) + float(parts[7][3:]) / 60,
-            'longitude_direction': parts[8],
-            'speed': float(parts[9]),
-            'direction': float(parts[10]),
+            'latitude': float(parts[4][:2]) + float(parts[4][2:]) / 60,
+            'latitude_direction': parts[5],
+            'longitude': float(parts[6][:3]) + float(parts[6][3:]) / 60,
+            'longitude_direction': parts[7],
+            'speed': float(parts[8]),
+            'direction': parts[9],
             'date': datetime.strptime(parts[4], '%d%m%y').strftime('%Y-%m-%d'),
             'vehicle_status': parts[11],
             'oil_percentage_1': parts[12],
@@ -358,12 +360,12 @@ def parse_gps103_data(raw_data):
             'command': parts[1],
             'time': datetime.strptime(parts[2], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
             'gps_valid': parts[3],
-            'latitude': float(parts[5][:2]) + float(parts[5][2:]) / 60,
-            'latitude_direction': parts[6],
-            'longitude': float(parts[7][:3]) + float(parts[7][3:]) / 60,
-            'longitude_direction': parts[8],
-            'speed': float(parts[9]),
-            'direction': float(parts[10]),
+            'latitude': float(parts[4][:2]) + float(parts[4][2:]) / 60,
+            'latitude_direction': parts[5],
+            'longitude': float(parts[6][:3]) + float(parts[6][3:]) / 60,
+            'longitude_direction': parts[7],
+            'speed': float(parts[8]),
+            'direction': parts[9],
             'date': datetime.strptime(parts[4], '%d%m%y').strftime('%Y-%m-%d'),
             'vehicle_status': parts[11],
             'oil_percentage_1': parts[12],
@@ -383,7 +385,7 @@ def parse_gps103_data(raw_data):
             'longitude': float(parts[8][:3]) + float(parts[8][3:]) / 60,
             'longitude_direction': parts[9],
             'speed': float(parts[10]),
-            'direction': float(parts[11]),
+            'direction': parts[11],
             'date': datetime.strptime(parts[4], '%d%m%y').strftime('%Y-%m-%d'),
             'vehicle_status': parts[13],
             'oil_percentage_1': parts[14],
@@ -402,7 +404,7 @@ def parse_gps103_data(raw_data):
             'longitude': float(parts[7][:3]) + float(parts[7][3:]) / 60,
             'longitude_direction': parts[8],
             'speed': float(parts[9]),
-            'direction': float(parts[10]),
+            'direction': parts[10],
             'date': datetime.strptime(parts[4], '%d%m%y').strftime('%Y-%m-%d'),
             'vehicle_status': parts[12],
             'oil_percentage_1': parts[13],
@@ -421,7 +423,7 @@ def parse_gps103_data(raw_data):
             'longitude': float(parts[7][:3]) + float(parts[7][3:]) / 60,
             'longitude_direction': parts[8],
             'speed': float(parts[9]),
-            'direction': float(parts[10]),
+            'direction': parts[10],
             'date': datetime.strptime(parts[4], '%d%m%y').strftime('%Y-%m-%d'),
             'vehicle_status': parts[12],
             'oil_percentage_1': parts[13],
@@ -440,7 +442,7 @@ def parse_gps103_data(raw_data):
             'longitude': float(parts[7][:3]) + float(parts[7][3:]) / 60,
             'longitude_direction': parts[8],
             'speed': float(parts[9]),
-            'direction': float(parts[10]),
+            'direction': parts[10],
             'date': datetime.strptime(parts[4], '%d%m%y').strftime('%Y-%m-%d'),
             'vehicle_status': parts[12],
             'oil_percentage_1': parts[13],
@@ -494,6 +496,7 @@ def parse_gps103_data(raw_data):
     # Convertir el diccionario a JSON
     json_data = json.dumps(data, indent=4)
     return json_data
+
 
 def tcp_to_json(port, data):
     if port == 6001:
