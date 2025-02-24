@@ -1,9 +1,9 @@
 import asyncio
 import json
 from datetime import datetime
-from ..ws.ws_manager import WebSocketManager
-from parser.gps103 import decode_gps103
-from parser.h02 import decode_h02
+from src.ws.ws_manager import WebSocketManager
+from src.tcp.parser.gps103 import decode_gps103
+from src.tcp.parser.h02 import decode_h02
 
 class TCPServer:
     def __init__(self, host='0.0.0.0', port=7005):
