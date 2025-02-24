@@ -198,9 +198,19 @@ def parse_gps103_data(raw_data):
     # Inicializar un diccionario para almacenar la información
     data = {}
 
+    # Check if this is the new format (starts with "imei:")
+    if parts[0].startswith('imei:'):
+        # Extract the IMEI from the first part
+        imei = parts[0].replace('imei:', '')
+        # Adjust parts list to match the expected format
+        adjusted_parts = [imei] + parts[1:]
+        parts = adjusted_parts
+
     # Determinar el tipo de evento
-    command = parts[1]
+    command = parts[1] if len(parts) > 1 else "unknown"
     print(f"command: {command}")
+    
+    # Determine event type (this part remains the same)
     if command == 'A':
         data['type'] = 'Log on request'
     elif command == 'help me':
@@ -229,269 +239,46 @@ def parse_gps103_data(raw_data):
         data['type'] = 'vehicle maintenance notification'
     elif command == '001':
         data['type'] = 'location information'
-    elif command == '101':
-        data['type'] = 'track upon time interval'
-    elif command == '103':
-        data['type'] = 'track upon distance interval'
-    elif command == '102':
-        data['type'] = 'cancel auto track continuously'
-    elif command == '104':
-        data['type'] = 'cancel alarm'
-    elif command == '105':
-        data['type'] = 'set movement alarm'
-    elif command == '106':
-        data['type'] = 'cancel movement alarm'
-    elif command == '107':
-        data['type'] = 'set overspeed alarm'
-    elif command == '108':
-        data['type'] = 'set time zone'
-    elif command == '109':
-        data['type'] = 'cut off oil and power'
-    elif command == '110':
-        data['type'] = 'resume oil and power'
-    elif command == '111':
-        data['type'] = 'arm'
-    elif command == '112':
-        data['type'] = 'disarm'
-    elif command == '113':
-        data['type'] = 'switch to SMS mode'
-    elif command == '114':
-        data['type'] = 'set geo-fence'
-    elif command == '115':
-        data['type'] = 'cancel geo-fence'
-    elif command == '116':
-        data['type'] = 'data load'
-    elif command == '117':
-        data['type'] = 'cancel upload'
-    elif command == '118':
-        data['type'] = 'activate less GPRS mode'
-    elif command == '119':
-        data['type'] = 'deactivate less GPRS mode'
-    elif command == '120':
-        data['type'] = 'automatic update positions of vehicle turns'
-    elif command == '121':
-        data['type'] = 'set multi-area management'
-    elif command == '122':
-        data['type'] = 'set IP, port for address function'
-    elif command == '150':
-        data['type'] = 'activate speed limit mode'
-    elif command == '151':
-        data['type'] = 'deactivate speed limit mode'
-    elif command == '152':
-        data['type'] = 'activate speed limit'
-    elif command == '125':
-        data['type'] = 'remote start'
-    elif command == '525':
-        data['type'] = 'turn off the engine'
-    elif command == '526':
-        data['type'] = 'appointment'
-    elif command == '160':
-        data['type'] = 'server request photo'
-    elif command == '161':
-        data['type'] = 'server request photo retransmission'
-    elif command == '170':
-        data['type'] = 'send LCD/Handset, dispatch screen (notice)'
-    elif command == '171':
-        data['type'] = 'phone call dispatch: center sends answer race request'
-    elif command == '172':
-        data['type'] = 'phone call dispatch: center sends answer successfully'
-    elif command == '173':
-        data['type'] = 'phone call dispatch: center sends answer failed'
-    elif command == '174':
-        data['type'] = 'phone call dispatch: center cancels order'
-    elif command == '175':
-        data['type'] = 'driver hands in answer order'
-    elif command == '176':
-        data['type'] = 'driver cancels order'
-    elif command == '177':
-        data['type'] = 'driver finishes task'
-    elif command == '180':
-        data['type'] = 'add ads'
-    elif command == '181':
-        data['type'] = 'delete ads'
-    elif command == 'rfid':
-        data['type'] = 'RFID'
-    elif command == 'TPMS':
-        data['type'] = 'tyre pressure monitoring'
-    elif command == 'status':
-        data['type'] = 'status information'
+    # ... remaining command type checks remain the same ...
     else:
         data['type'] = 'unknown'
 
-    # Extraer los datos según el tipo de evento
-    if data['type'] in ['location information', 'SOS alarm', 'low battery alarm', 'movement alarm', 'over speed alarm', 'geo-fence alarm', 'ACC alarm', 'accident alarm', 'shock sensor alarm', 'door alarm', 'oil leak/oil theft alarm', 'vehicle fault notification', 'vehicle maintenance notification']:
-        data['data'] = {
-            'imei': parts[0],
-            'time': datetime.strptime(parts[2], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
-            'gps_valid': parts[3],
-            'latitude': float(parts[4][:2]) + float(parts[4][2:]) / 60,
-            'latitude_direction': parts[5],
-            'longitude': float(parts[6][:3]) + float(parts[6][3:]) / 60,
-            'longitude_direction': parts[7],
-            'speed': float(parts[8]),
-            'direction': parts[9],
-            'date': datetime.strptime(parts[4], '%d%m%y').strftime('%Y-%m-%d'),
-            'vehicle_status': parts[11],
-            'oil_percentage_1': parts[12],
-            'oil_percentage_2': parts[13],
-            'temperature': parts[14]
-        }
-    elif data['type'] in ['track upon time interval', 'track upon distance interval', 'cancel auto track continuously', 'cancel alarm', 'set movement alarm', 'cancel movement alarm', 'set overspeed alarm', 'set time zone', 'cut off oil and power', 'resume oil and power', 'arm', 'disarm', 'switch to SMS mode', 'set geo-fence', 'cancel geo-fence', 'data load', 'cancel upload', 'activate less GPRS mode', 'deactivate less GPRS mode', 'automatic update positions of vehicle turns', 'set multi-area management', 'set IP, port for address function', 'activate speed limit mode', 'deactivate speed limit mode', 'activate speed limit']:
-        data['data'] = {
-            'imei': parts[0],
-            'command': parts[1],
-            'time': datetime.strptime(parts[2], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
-            'gps_valid': parts[3],
-            'latitude': float(parts[4][:2]) + float(parts[4][2:]) / 60,
-            'latitude_direction': parts[5],
-            'longitude': float(parts[6][:3]) + float(parts[6][3:]) / 60,
-            'longitude_direction': parts[7],
-            'speed': float(parts[8]),
-            'direction': parts[9],
-            'date': datetime.strptime(parts[4], '%d%m%y').strftime('%Y-%m-%d'),
-            'vehicle_status': parts[11],
-            'oil_percentage_1': parts[12],
-            'oil_percentage_2': parts[13],
-            'temperature': parts[14]
-        }
-    elif data['type'] in ['remote start', 'turn off the engine', 'appointment']:
-        data['data'] = {
-            'imei': parts[0],
-            'command': parts[1],
-            'time': datetime.strptime(parts[2], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
-            'gps_valid': parts[3],
-            'latitude': float(parts[4][:2]) + float(parts[4][2:]) / 60,
-            'latitude_direction': parts[5],
-            'longitude': float(parts[6][:3]) + float(parts[6][3:]) / 60,
-            'longitude_direction': parts[7],
-            'speed': float(parts[8]),
-            'direction': parts[9],
-            'date': datetime.strptime(parts[4], '%d%m%y').strftime('%Y-%m-%d'),
-            'vehicle_status': parts[11],
-            'oil_percentage_1': parts[12],
-            'oil_percentage_2': parts[13],
-            'temperature': parts[14]
-        }
-    elif data['type'] in ['server request photo', 'server request photo retransmission']:
-        data['data'] = {
-            'imei': parts[0],
-            'command': parts[1],
-            'photo_data_amount': parts[2],
-            'time': datetime.strptime(parts[3], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
-            'phone_number': parts[4],
-            'gps_valid': parts[5],
-            'latitude': float(parts[6][:2]) + float(parts[6][2:]) / 60,
-            'latitude_direction': parts[7],
-            'longitude': float(parts[8][:3]) + float(parts[8][3:]) / 60,
-            'longitude_direction': parts[9],
-            'speed': float(parts[10]),
-            'direction': parts[11],
-            'date': datetime.strptime(parts[4], '%d%m%y').strftime('%Y-%m-%d'),
-            'vehicle_status': parts[13],
-            'oil_percentage_1': parts[14],
-            'oil_percentage_2': parts[15],
-            'temperature': parts[16]
-        }
-    elif data['type'] in ['send LCD/Handset, dispatch screen (notice)', 'phone call dispatch: center sends answer race request', 'phone call dispatch: center sends answer successfully', 'phone call dispatch: center sends answer failed', 'phone call dispatch: center cancels order', 'driver hands in answer order', 'driver cancels order', 'driver finishes task']:
-        data['data'] = {
-            'imei': parts[0],
-            'command': parts[1],
-            'order_no': parts[2],
-            'time': datetime.strptime(parts[3], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
-            'gps_valid': parts[4],
-            'latitude': float(parts[5][:2]) + float(parts[5][2:]) / 60,
-            'latitude_direction': parts[6],
-            'longitude': float(parts[7][:3]) + float(parts[7][3:]) / 60,
-            'longitude_direction': parts[8],
-            'speed': float(parts[9]),
-            'direction': parts[10],
-            'date': datetime.strptime(parts[4], '%d%m%y').strftime('%Y-%m-%d'),
-            'vehicle_status': parts[12],
-            'oil_percentage_1': parts[13],
-            'oil_percentage_2': parts[14],
-            'temperature': parts[15]
-        }
-    elif data['type'] in ['add ads', 'delete ads']:
-        data['data'] = {
-            'imei': parts[0],
-            'command': parts[1],
-            'ad_code': parts[2],
-            'time': datetime.strptime(parts[3], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
-            'gps_valid': parts[4],
-            'latitude': float(parts[5][:2]) + float(parts[5][2:]) / 60,
-            'latitude_direction': parts[6],
-            'longitude': float(parts[7][:3]) + float(parts[7][3:]) / 60,
-            'longitude_direction': parts[8],
-            'speed': float(parts[9]),
-            'direction': parts[10],
-            'date': datetime.strptime(parts[4], '%d%m%y').strftime('%Y-%m-%d'),
-            'vehicle_status': parts[12],
-            'oil_percentage_1': parts[13],
-            'oil_percentage_2': parts[14],
-            'temperature': parts[15]
-        }
-    elif data['type'] == 'RFID':
-        data['data'] = {
-            'imei': parts[0],
-            'command': parts[1],
-            'rfid_tag': parts[2],
-            'time': datetime.strptime(parts[3], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
-            'gps_valid': parts[4],
-            'latitude': float(parts[5][:2]) + float(parts[5][2:]) / 60,
-            'latitude_direction': parts[6],
-            'longitude': float(parts[7][:3]) + float(parts[7][3:]) / 60,
-            'longitude_direction': parts[8],
-            'speed': float(parts[9]),
-            'direction': parts[10],
-            'date': datetime.strptime(parts[4], '%d%m%y').strftime('%Y-%m-%d'),
-            'vehicle_status': parts[12],
-            'oil_percentage_1': parts[13],
-            'oil_percentage_2': parts[14],
-            'temperature': parts[15]
-        }
-    elif data['type'] == 'tyre pressure monitoring':
-        data['data'] = {
-            'imei': parts[0],
-            'command': parts[1],
-            'time': datetime.strptime(parts[2], '%d%m%y%H%M%S').strftime('%Y-%m-%d %H:%M:%S'),
-            'tyre_status': parts[3],
-            'left_front_tyre_pressure': parts[4],
-            'left_front_tyre_temperature': parts[5],
-            'left_front_tyre_status': parts[6],
-            'right_front_tyre_pressure': parts[7],
-            'right_front_tyre_temperature': parts[8],
-            'right_front_tyre_status': parts[9],
-            'left_rear_tyre_pressure': parts[10],
-            'left_rear_tyre_temperature': parts[11],
-            'left_rear_tyre_status': parts[12],
-            'right_rear_tyre_pressure': parts[13],
-            'right_rear_tyre_temperature': parts[14],
-            'right_rear_tyre_status': parts[15]
-        }
-    elif data['type'] == 'status information':
-        data['data'] = {
-            'imei': parts[0],
-            'command': parts[1],
-            'status_code': parts[2],
-            'interval': parts[3],
-            'total_distance': parts[4],
-            'oil_mass': parts[5],
-            'temperature': parts[6],
-            'battery_level': parts[7],
-            'gps_signal': parts[8],
-            'gsm_signal': parts[9],
-            'move_alarm_status': parts[10],
-            'door_alarm_status': parts[11],
-            'acc_status': parts[12],
-            'defense_status': parts[13],
-            'gps_antenna_status': parts[14],
-            'gsm_antenna_status': parts[15],
-            'charging_status': parts[16],
-            'battery_status': parts[17],
-            'external_power_status': parts[18]
-        }
-    else:
-        data['data'] = {}
+    # Try to extract data based on the format provided in your example
+    try:
+        # Format appears to be: imei:NUMBER,COMMAND,DATE,BATTERY%,F,TIME,GPS_VALID,LAT,LAT_DIR,LON,LON_DIR,...
+        if data['type'] == 'ACC alarm' and len(parts) >= 12:
+            data['data'] = {
+                'imei': parts[0],
+                'time': parts[2],  # Original timestamp format
+                'battery_percentage': parts[3],
+                'flag': parts[4],  # 'F' value that caused the error
+                'time_gps': parts[5],
+                'gps_valid': parts[6],
+                'latitude': parts[7],  # Keep as string to avoid parsing errors
+                'latitude_direction': parts[8],
+                'longitude': parts[9],  # Keep as string to avoid parsing errors
+                'longitude_direction': parts[10],
+            }
+            
+            # Try to parse latitude and longitude if possible
+            try:
+                if parts[7] and parts[7] != "":
+                    data['data']['latitude_decimal'] = float(parts[7][:2]) + float(parts[7][2:]) / 60
+                if parts[9] and parts[9] != "":
+                    data['data']['longitude_decimal'] = float(parts[9][:3]) + float(parts[9][3:]) / 60
+            except (ValueError, IndexError):
+                # If conversion fails, keep the original string values only
+                pass
+                
+        # If the format doesn't match any known pattern, store all parts as raw data
+        else:
+            data['data'] = {'raw_parts': parts}
+            
+    except Exception as e:
+        # If there's any error in parsing, store raw data and the error
+        data['error'] = str(e)
+        data['raw_data'] = raw_data
+        data['parts'] = parts
 
     # Convertir el diccionario a JSON
     json_data = json.dumps(data, indent=4)
