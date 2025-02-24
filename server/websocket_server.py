@@ -3,6 +3,7 @@ import websockets
 from urllib.parse import urlparse, parse_qs
 from .utils import authenticate_client, clients
 
+
 async def handle_client(websocket, path):
     devices = await authenticate_client(websocket, path)
     if not devices:
@@ -20,10 +21,12 @@ async def handle_client(websocket, path):
     finally:
         del clients[client_id]
 
+
 async def main():
     async with websockets.serve(handle_client, "0.0.0.0", 7006):
         print("WebSocket server listening on port 7006")
         await asyncio.Future()  # run forever
+
 
 def start_websocket_server():
     asyncio.run(main())
