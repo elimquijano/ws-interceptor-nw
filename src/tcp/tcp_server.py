@@ -14,9 +14,10 @@ class TCPServer:
     async def tcp_to_json(self, port, data):
         if port == 6001:
             # Coban
-            print(f"{port}, {data}")
             data_dict = decode_gps103(data)
-            print(data_dict)
+            if data_dict["data"]["imei"] == "863844052450514":
+                print(f"{port}, {data}")
+                print(data_dict)
         elif port == 6013:
             # Sinotrack
             # print(f"{port}, {data}")
