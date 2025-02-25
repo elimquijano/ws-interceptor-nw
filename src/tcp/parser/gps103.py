@@ -158,6 +158,12 @@ class Gps103Decoder:
                     self.data["speed"] = float(self.parts[index + 4])
                 except ValueError:
                     pass
+
+            if index + 5 < len(self.parts):
+                try:
+                    self.data["course"] = float(self.parts[index + 5])
+                except ValueError:
+                    pass
         except Exception as e:
             print(f"Error parsing coordinates: {e}")
 
