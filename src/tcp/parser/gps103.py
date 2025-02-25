@@ -1,6 +1,5 @@
 from datetime import datetime
 
-
 class Gps103Decoder:
     def __init__(self, raw_data):
         self.raw_data = raw_data
@@ -84,6 +83,7 @@ class Gps103Decoder:
                 "181": "delete ads",
                 "TPMS": "tyre pressure monitoring",
                 "rfid": "RFID",
+                "tracker": "real-time position"
             }
 
             if command.startswith("T:"):
@@ -103,8 +103,8 @@ class Gps103Decoder:
         if len(self.parts) > 2 and self.parts[2]:
             try:
                 date_str = self.parts[2]
-                if len(date_str) >= 10:
-                    dt = datetime.strptime(date_str, '%y%m%d%H%M%S')
+                if len(date_str) >= 12:  # Asegurarse de que la longitud sea suficiente
+                    dt = datetime.strptime(date_str, '%d%m%y%H%M%S')
                     self.data["datetime"] = dt.strftime('%Y-%m-%d %H:%M:%S')
                 else:
                     self.data["datetime"] = date_str
@@ -121,12 +121,7 @@ class Gps103Decoder:
                     break
 
         for i, part in enumerate(self.parts):
-            if (
-                part == "F"
-                and i + 2 < len(self.parts)
-                and self.parts[i + 1].endswith(".000")
-                and self.parts[i + 2] in ["A", "V"]
-            ):
+            if part == "F" and i + 2 < len(self.parts) and self.parts[i + 1].endswith(".000") and self.parts[i + 2] in ["A", "V"]:
                 if i + 5 < len(self.parts):
                     self.data["gps_time"] = self.parts[i + 1]
                     self.data["gps_valid"] = True if self.parts[i + 2] == "A" else False
@@ -171,29 +166,18 @@ class Gps103Decoder:
         if "event_type" in self.data:
             if self.data["event_type"] == "position":
                 self.extract_position_data()
-            elif self.data["event_type"] in [
-                "SOS alarm",
-                "low battery alarm",
-                "movement alarm",
-                "over speed alarm",
-                "geo-fence alarm",
-                "power off alarm",
-                "door alarm",
-                "shock alarm",
-                "ACC alarm",
-                "accident alarm",
-                "bonnet alarm",
-                "footbrake alarm",
-                "temperature alarm",
-                "oil leak/oil theft alarm",
-                "vehicle fault notification",
-                "vehicle maintenance notification",
-            ]:
+            elif self.data["event_type"] in ["SOS alarm", "low battery alarm", "movement alarm", "over speed alarm",
+                                             "geo-fence alarm", "power off alarm", "door alarm", "shock alarm",
+                                             "ACC alarm", "accident alarm", "bonnet alarm", "footbrake alarm",
+                                             "temperature alarm", "oil leak/oil theft alarm", "vehicle fault notification",
+                                             "vehicle maintenance notification"]:
                 self.extract_event_data()
             elif self.data["event_type"] == "tyre pressure monitoring":
                 self.extract_tyre_pressure_data()
             elif self.data["event_type"] == "RFID":
                 self.extract_rfid_data()
+            elif self.data["event_type"] == "real-time position":
+                self.extract_real_time_position_data()
 
     def extract_position_data(self):
         if len(self.parts) > 11:
@@ -256,16 +240,25 @@ class Gps103Decoder:
         if len(self.parts) > 3:
             self.data["rfid_tag"] = self.parts[3]
 
+    def extract_real_time_position_data(self):
+        if len(self.parts) > 5:
+            self.extract_coordinates(3)
+        if len(self.parts) > 8:
+            try:
+                self.data["speed"] = float(self.parts[8])
+            except ValueError:
+                pass
+        if len(self.parts) > 9:
+            try:
+                self.data["course"] = float(self.parts[9])
+            except ValueError:
+                pass
+
     def classify_message(self):
-        if self.data["event_type"] in [
-            "position",
-            "track upon time interval",
-            "track upon distance interval",
-        ]:
+        if self.data["event_type"] in ["position", "track upon time interval", "track upon distance interval", "real-time position"]:
             return {"type": "position", "data": self.data}
         else:
             return {"type": "event", "data": self.data}
-
 
 def decode_gps103(message):
     decoder = Gps103Decoder(message)
