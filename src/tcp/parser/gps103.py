@@ -107,8 +107,10 @@ class Gps103Decoder:
                     dt = datetime.strptime(date_str, "%d%m%y%H%M")
                     self.data["datetime"] = dt.strftime("%Y-%m-%d %H:%M:%S")
                 else:
+                    print("ERROR al parsear 1")
                     self.data["datetime"] = date_str
             except ValueError as e:
+                print("ERROR al parsear 2")
                 self.data["datetime"] = self.parts[2]
 
     def extract_gps_data(self):
