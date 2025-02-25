@@ -40,6 +40,9 @@ class Gps103Decoder:
                 "oil": "oil leak/oil theft alarm",
                 "oil1": "oil 1 alarm",
                 "oil2": "oil 2 alarm",
+                "tracker": "position",
+                "acc on": "ignitionOn",
+                "acc off": "ignitionOff",
                 "001": "real-time position",
                 "101": "track upon time interval",
                 "103": "track upon distance interval",
@@ -84,7 +87,6 @@ class Gps103Decoder:
                 "181": "delete ads",
                 "TPMS": "tyre pressure monitoring",
                 "rfid": "RFID",
-                "tracker": "position",
             }
 
             if command.startswith("T:"):
