@@ -14,16 +14,16 @@ class TCPServer:
     async def tcp_to_json(self, port, data):
         if port == 6001:
             # Coban
-            #print(f"{port}, {data}")
+            # print(f"{port}, {data}")
             data_dict = decode_gps103(data)
-            if "alarm" in data_dict["event_type"]:
+            if data_dict["event_type"] == "alarm":
                 print(data_dict)
-            #print(data_dict)
+            # print(data_dict)
         elif port == 6013:
             # Sinotrack
-            #print(f"{port}, {data}")
+            # print(f"{port}, {data}")
             data_dict = decode_h02(data)
-            #print(data_dict)
+            # print(data_dict)
         return None
 
     async def handle_client(self, reader, writer):

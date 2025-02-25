@@ -30,7 +30,7 @@ class Gps103Decoder:
                 "stockade": "geo-fence alarm",
                 "ac alarm": "power off alarm",
                 "door alarm": "door alarm",
-                "sensor alarm": "shock sensor alarm",
+                "sensor alarm": "alarm",
                 "acc alarm": "ACC alarm",
                 "accident alarm": "accident alarm",
                 "bonnet alarm": "bonnet alarm",
@@ -38,7 +38,7 @@ class Gps103Decoder:
                 "oil": "oil leak/oil theft alarm",
                 "oil1": "oil 1 alarm",
                 "oil2": "oil 2 alarm",
-                "001": "location information",
+                "001": "position",
                 "101": "track upon time interval",
                 "103": "track upon distance interval",
             }
