@@ -102,18 +102,13 @@ class Gps103Decoder:
     def parse_datetime(self):
         if len(self.parts) > 2 and self.parts[2]:
             try:
-                print(f"NOU")
                 date_str = self.parts[2]
-                print(f"SIUU{date_str}")
                 if len(date_str) >= 10:
-                    print("ERROR al parsear 0")
-                    dt = datetime.strptime(date_str, "%d%m%y%H%M")
-                    self.data["datetime"] = dt.strftime("%Y-%m-%d %H:%M:%S")
+                    dt = datetime.strptime(date_str, '%y%m%d%H%M%S')
+                    self.data["datetime"] = dt.strftime('%Y-%m-%d %H:%M:%S')
                 else:
-                    print("ERROR al parsear 1")
                     self.data["datetime"] = date_str
             except ValueError as e:
-                print("ERROR al parsear 2")
                 self.data["datetime"] = self.parts[2]
 
     def extract_gps_data(self):
