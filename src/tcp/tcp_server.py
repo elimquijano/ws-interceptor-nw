@@ -16,9 +16,7 @@ class TCPServer:
             # Coban
             # print(f"{port}, {data}")
             data_dict = decode_gps103(data)
-            if data_dict["event_type"] == "alarm":
-                print(data_dict)
-            # print(data_dict)
+            print(data_dict)
         elif port == 6013:
             # Sinotrack
             # print(f"{port}, {data}")
