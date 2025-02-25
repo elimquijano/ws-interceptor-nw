@@ -1,5 +1,6 @@
 from datetime import datetime
 
+
 class Gps103Decoder:
     def __init__(self, raw_data):
         self.raw_data = raw_data
@@ -11,7 +12,8 @@ class Gps103Decoder:
         self.determine_event_type()
         self.parse_datetime()
         self.extract_gps_data()
-        return self.data
+        self.extract_additional_data()
+        return self.classify_message()
 
     def extract_imei(self):
         if len(self.parts) > 0 and self.parts[0].startswith("imei:"):
@@ -30,7 +32,7 @@ class Gps103Decoder:
                 "stockade": "geo-fence alarm",
                 "ac alarm": "power off alarm",
                 "door alarm": "door alarm",
-                "sensor alarm": "alarm",
+                "sensor alarm": "shock alarm",
                 "acc alarm": "ACC alarm",
                 "accident alarm": "accident alarm",
                 "bonnet alarm": "bonnet alarm",
@@ -41,11 +43,57 @@ class Gps103Decoder:
                 "001": "position",
                 "101": "track upon time interval",
                 "103": "track upon distance interval",
+                "102": "cancel auto track continuously",
+                "104": "cancel alarm",
+                "105": "set movement alarm",
+                "106": "cancel movement alarm",
+                "107": "set overspeed alarm",
+                "108": "set time zone",
+                "109": "cut off oil and power",
+                "110": "resume oil and power",
+                "111": "arm",
+                "112": "disarm",
+                "113": "switch to SMS mode",
+                "114": "set geo-fence",
+                "115": "cancel geo-fence",
+                "116": "data load",
+                "117": "cancel upload",
+                "118": "activate less GPRS mode",
+                "119": "deactivate less GPRS mode",
+                "120": "automatic update positions of vehicle turns",
+                "121": "set multi-area management",
+                "122": "set IP, port for address function",
+                "123": "set shock alarm",
+                "124": "cancel shock alarm",
+                "125": "remote start",
+                "126": "set OBDII data sending way",
+                "150": "activate speed limit mode",
+                "151": "deactivate speed limit mode",
+                "152": "set speed limit",
+                "160": "server request photo",
+                "161": "server request photo retransmission",
+                "170": "send LCD/handset, dispatch screen (notice) data",
+                "171": "phone call dispatch: center sends answer race request to vehicles",
+                "172": "phone call dispatch: center sends answer successfully to vehicle",
+                "173": "phone call dispatch: center sends answer failed to vehicles",
+                "174": "phone call dispatch: center sends cancel order to vehicle",
+                "175": "driver hands in answer order",
+                "176": "driver cancel order",
+                "177": "driver finish task",
+                "180": "send to LED ads screen, add ads information",
+                "181": "delete ads",
+                "TPMS": "tyre pressure monitoring",
+                "rfid": "RFID",
             }
 
             if command.startswith("T:"):
                 self.data["event_type"] = "temperature alarm"
                 self.data["temperature"] = command.replace("T:", "")
+            elif command.startswith("DTC"):
+                self.data["event_type"] = "vehicle fault notification"
+                self.data["dtc_code"] = command.replace("DTC", "")
+            elif command.startswith("service"):
+                self.data["event_type"] = "vehicle maintenance notification"
             else:
                 self.data["event_type"] = event_types.get(command, "unknown")
         else:
@@ -73,7 +121,12 @@ class Gps103Decoder:
                     break
 
         for i, part in enumerate(self.parts):
-            if part == "F" and i + 2 < len(self.parts) and self.parts[i + 1].endswith(".000") and self.parts[i + 2] in ["A", "V"]:
+            if (
+                part == "F"
+                and i + 2 < len(self.parts)
+                and self.parts[i + 1].endswith(".000")
+                and self.parts[i + 2] in ["A", "V"]
+            ):
                 if i + 5 < len(self.parts):
                     self.data["gps_time"] = self.parts[i + 1]
                     self.data["gps_valid"] = True if self.parts[i + 2] == "A" else False
@@ -107,6 +160,106 @@ class Gps103Decoder:
                     pass
         except Exception as e:
             print(f"Error parsing coordinates: {e}")
+
+    def extract_additional_data(self):
+        if "event_type" in self.data:
+            if self.data["event_type"] == "position":
+                self.extract_position_data()
+            elif self.data["event_type"] in [
+                "SOS alarm",
+                "low battery alarm",
+                "movement alarm",
+                "over speed alarm",
+                "geo-fence alarm",
+                "power off alarm",
+                "door alarm",
+                "shock alarm",
+                "ACC alarm",
+                "accident alarm",
+                "bonnet alarm",
+                "footbrake alarm",
+                "temperature alarm",
+                "oil leak/oil theft alarm",
+                "vehicle fault notification",
+                "vehicle maintenance notification",
+            ]:
+                self.extract_event_data()
+            elif self.data["event_type"] == "tyre pressure monitoring":
+                self.extract_tyre_pressure_data()
+            elif self.data["event_type"] == "RFID":
+                self.extract_rfid_data()
+
+    def extract_position_data(self):
+        if len(self.parts) > 11:
+            self.data["direction"] = self.parts[11]
+        if len(self.parts) > 12:
+            self.data["altitude"] = self.parts[12]
+        if len(self.parts) > 13:
+            self.data["acc_status"] = self.parts[13]
+        if len(self.parts) > 14:
+            self.data["door_status"] = self.parts[14]
+        if len(self.parts) > 15:
+            self.data["oil_percentage_1"] = self.parts[15]
+        if len(self.parts) > 16:
+            self.data["oil_percentage_2"] = self.parts[16]
+        if len(self.parts) > 17:
+            self.data["temperature"] = self.parts[17]
+
+    def extract_event_data(self):
+        if self.data["event_type"] == "temperature alarm":
+            self.data["temperature"] = self.parts[1]
+        elif self.data["event_type"] == "oil leak/oil theft alarm":
+            self.data["oil_percentage"] = self.parts[1]
+        elif self.data["event_type"] == "vehicle fault notification":
+            self.data["dtc_code"] = self.parts[1]
+        elif self.data["event_type"] == "vehicle maintenance notification":
+            self.data["maintenance_days"] = self.parts[1]
+            self.data["maintenance_mileage"] = self.parts[2]
+
+    def extract_tyre_pressure_data(self):
+        if len(self.parts) > 3:
+            self.data["tyre_status"] = self.parts[3]
+        if len(self.parts) > 4:
+            self.data["num_tyres"] = self.parts[4]
+        if len(self.parts) > 5:
+            self.data["left_front_pressure"] = self.parts[5]
+        if len(self.parts) > 6:
+            self.data["left_front_temperature"] = self.parts[6]
+        if len(self.parts) > 7:
+            self.data["left_front_status"] = self.parts[7]
+        if len(self.parts) > 8:
+            self.data["right_front_pressure"] = self.parts[8]
+        if len(self.parts) > 9:
+            self.data["right_front_temperature"] = self.parts[9]
+        if len(self.parts) > 10:
+            self.data["right_front_status"] = self.parts[10]
+        if len(self.parts) > 11:
+            self.data["left_rear_pressure"] = self.parts[11]
+        if len(self.parts) > 12:
+            self.data["left_rear_temperature"] = self.parts[12]
+        if len(self.parts) > 13:
+            self.data["left_rear_status"] = self.parts[13]
+        if len(self.parts) > 14:
+            self.data["right_rear_pressure"] = self.parts[14]
+        if len(self.parts) > 15:
+            self.data["right_rear_temperature"] = self.parts[15]
+        if len(self.parts) > 16:
+            self.data["right_rear_status"] = self.parts[16]
+
+    def extract_rfid_data(self):
+        if len(self.parts) > 3:
+            self.data["rfid_tag"] = self.parts[3]
+
+    def classify_message(self):
+        if self.data["event_type"] in [
+            "position",
+            "track upon time interval",
+            "track upon distance interval",
+        ]:
+            return {"type": "position", "data": self.data}
+        else:
+            return {"type": "event", "data": self.data}
+
 
 def decode_gps103(message):
     decoder = Gps103Decoder(message)
