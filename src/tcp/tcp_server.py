@@ -16,7 +16,8 @@ class TCPServer:
             # Coban
             # print(f"{port}, {data}")
             data_dict = decode_gps103(data)
-            print(data_dict)
+            if data_dict["imei"] == "863844052450514":
+                print(data_dict)
         elif port == 6013:
             # Sinotrack
             # print(f"{port}, {data}")
