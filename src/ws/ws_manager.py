@@ -1,6 +1,3 @@
-import websockets
-from typing import Dict, Set
-
 class WebSocketManager:
     _instance = None
     

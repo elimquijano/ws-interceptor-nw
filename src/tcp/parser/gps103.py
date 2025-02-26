@@ -158,7 +158,7 @@ class Gps103Decoder:
 
             if index + 4 < len(self.parts):
                 try:
-                    self.data["speed"] = float(self.parts[index + 4])
+                    self.data["speed"] = float(self.parts[index + 4]) * 1.852
                 except ValueError:
                     pass
 

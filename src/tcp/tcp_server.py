@@ -15,14 +15,13 @@ class TCPServer:
         if port == 6001:
             # Coban
             data_dict = decode_gps103(data)
-            if data_dict["data"]["imei"] == "863844052450514":
-                print(f"{port}, {data}")
-                print(data_dict)
+            print(f"{port}, {data}")
+            print(data_dict)
         elif port == 6013:
             # Sinotrack
-            # print(f"{port}, {data}")
             data_dict = decode_h02(data)
-            # print(data_dict)
+            print(f"{port}, {data}")
+            print(data_dict)
         return None
 
     async def handle_client(self, reader, writer):
