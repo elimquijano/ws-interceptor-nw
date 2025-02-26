@@ -1,5 +1,6 @@
 from aiohttp import web
 from .ws_manager import WebSocketManager
+from ..utils.common import login
 
 class WebSocketServer:
     def __init__(self, host='0.0.0.0', port=7006):
@@ -17,6 +18,11 @@ class WebSocketServer:
             print("Connection attempt without credentials")
             return web.HTTPForbidden(reason="Authentication required")
 
+        auth = await login(username, password)
+        if not auth:
+            print("Authentication failed")
+            return web.HTTPForbidden(reason="Authentication failed")
+        
         print(f"New WebSocket client connected - Username: {username}")
         ws = web.WebSocketResponse()
         await ws.prepare(request)

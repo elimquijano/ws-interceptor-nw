@@ -1,5 +1,6 @@
 from datetime import datetime
 
+
 class H02ProtocolDecoder:
     def __init__(self, raw_data):
         self.raw_data = raw_data
@@ -14,7 +15,7 @@ class H02ProtocolDecoder:
     def determine_event_type(self):
         command = self.parts[2]
         event_types = {
-            "V1": "real-time location",
+            "V1": "position",
             "XT": "heartbeat packet",
             "VI1": "location request",
             "BC": "blind spots uploading",
@@ -38,13 +39,18 @@ class H02ProtocolDecoder:
             "SLAN": "language setting",
             "CALB": "audio monitor",
             "PWM": "power saving mode setting",
-            "INFO": "query device information"
+            "INFO": "query device information",
         }
         self.data["type"] = event_types.get(command, "unknown")
 
     def extract_data(self):
         event_type = self.data["type"]
-        if event_type in ["real-time location", "location request", "blind spots uploading", "device alarm"]:
+        if event_type in [
+            "position",
+            "location request",
+            "blind spots uploading",
+            "device alarm",
+        ]:
             self.data["data"] = self.extract_location_data()
         elif event_type == "heartbeat packet":
             self.data["data"] = {"imei": self.parts[1]}
@@ -65,7 +71,11 @@ class H02ProtocolDecoder:
         elif event_type == "interval setting":
             self.data["data"] = {"imei": self.parts[1], "interval": self.parts[3]}
         elif event_type == "alarm setting":
-            self.data["data"] = {"imei": self.parts[1], "key": self.parts[3], "type": self.parts[4]}
+            self.data["data"] = {
+                "imei": self.parts[1],
+                "key": self.parts[3],
+                "type": self.parts[4],
+            }
         elif event_type == "device reboot":
             self.data["data"] = {"imei": self.parts[1]}
         elif event_type == "reset to defaults":
@@ -90,13 +100,13 @@ class H02ProtocolDecoder:
     def extract_location_data(self):
         return {
             "imei": self.parts[1],
-            "time": datetime.strptime(self.parts[3], "%H%M%S").strftime("%H:%M:%S"),
+            "event_type": "position",
             "data_valid_bit": self.parts[4],
             "latitude": float(self.parts[5][:2]) + float(self.parts[5][2:]) / 60,
             "longitude": float(self.parts[7][:3]) + float(self.parts[7][3:]) / 60,
             "speed": float(self.parts[9]),
             "course": float(self.parts[10]),
-            "date": datetime.strptime(self.parts[11], "%d%m%y").strftime("%Y-%m-%d"),
+            "datetime": f"{datetime.strptime(self.parts[11], '%d%m%y').strftime('%Y-%m-%d')} {datetime.strptime(self.parts[3], '%H%M%S').strftime('%H:%M:%S')}",
             "vehicle_status": self.parts[12],
             "power_capacity": self.parts[13],
         }
@@ -159,6 +169,7 @@ class H02ProtocolDecoder:
             "imei": self.parts[1],
             "time": datetime.strptime(self.parts[3], "%H%M%S").strftime("%H:%M:%S"),
         }
+
 
 def decode_h02(message):
     decoder = H02ProtocolDecoder(message)
