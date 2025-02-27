@@ -21,7 +21,7 @@ class TCPServer:
             data_dict = decode_gps103(data)
             print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Parseo completo")
             if data_dict["type"] == "position":
-                devices = await update_position(data_dict, self.ws_manager.devices)
+                devices = update_position(data_dict, self.ws_manager.devices)
                 await self.ws_manager.save_devices(devices)
             elif data_dict["type"] == "event":
                 print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Envio a send_event")
@@ -30,7 +30,7 @@ class TCPServer:
             # Sinotrack
             data_dict = decode_h02(data)
             if data_dict["type"] == "position":
-                devices = await update_position(data_dict, self.ws_manager.devices)
+                devices = update_position(data_dict, self.ws_manager.devices)
                 await self.ws_manager.save_devices(devices)
             elif data_dict["type"] == "event":
                 users, data = await send_event(data_dict, self.ws_manager.devices)
