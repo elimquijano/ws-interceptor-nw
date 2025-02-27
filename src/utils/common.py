@@ -1,6 +1,11 @@
 import requests
+import os
+from dotenv import load_dotenv
 
-URL_HOST_TRACCAR = "http://200.234.225.210:8082/"
+# Cargar las variables de entorno desde el archivo .env
+load_dotenv()
+
+URL_HOST_TRACCAR = os.getenv("URL_HOST_TRACCAR")
 API_URL_TRACCAR = URL_HOST_TRACCAR + "api/"
 
 
@@ -15,8 +20,6 @@ def login(username, password):
 
     # Imprimir la respuesta
     if response.status_code == 200:
-        print("Código de estado:", response.status_code)
-        print("Respuesta del servidor:", response.text)
-        return response.text
+        return response.json()
     else:
         return None

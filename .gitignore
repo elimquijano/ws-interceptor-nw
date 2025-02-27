@@ -1,1 +1,11 @@
 prueba.py
+# Ignorar directorios __pycache__
+__pycache__/
+
+# Ignorar archivos de configuración de Python
+*.pyc
+*.pyo
+
+# Ignorar entornos virtuales
+venv/
+.env

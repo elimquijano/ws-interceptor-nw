@@ -98,13 +98,23 @@ class H02ProtocolDecoder:
             self.data["data"] = {}
 
     def extract_location_data(self):
+        lat_str = self.parts[5]
+        lon_str = self.parts[7]
+        lat_deg = float(lat_str[:2])
+        lat_min = float(lat_str[2:])
+        lon_deg = float(lon_str[:3])
+        lon_min = float(lon_str[3:])
+
+        latitude = lat_deg + (lat_min / 60)
+        longitude = lon_deg + (lon_min / 60)
+
         return {
             "imei": self.parts[1],
             "event_type": "position",
             "data_valid_bit": self.parts[4],
-            "latitude": float(self.parts[5][:2]) + float(self.parts[5][2:]) / 60,
-            "longitude": float(self.parts[7][:3]) + float(self.parts[7][3:]) / 60,
-            "speed": float(self.parts[9]),
+            "latitude": round(latitude, 6),
+            "longitude": round(longitude, 6),
+            "speed": float(self.parts[9]) * 1.852,  # Convertir de nudos a km/h
             "course": float(self.parts[10]),
             "datetime": f"{datetime.strptime(self.parts[11], '%d%m%y').strftime('%Y-%m-%d')} {datetime.strptime(self.parts[3], '%H%M%S').strftime('%H:%M:%S')}",
             "vehicle_status": self.parts[12],
@@ -153,7 +163,7 @@ class H02ProtocolDecoder:
     def extract_imei_setting_data(self):
         return {
             "imei": self.parts[1],
-            "imei": self.parts[3],
+            "new_imei": self.parts[3],
             "time": datetime.strptime(self.parts[4], "%H%M%S").strftime("%H:%M:%S"),
         }
 
