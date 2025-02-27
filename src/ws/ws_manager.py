@@ -12,8 +12,8 @@ class WebSocketManager:
             cls._instance.devices = []  # Dict[dict]
         return cls._instance
 
-    async def register(self, websocket, username, password):
-        self.clients[websocket] = {"username": username, "password": password}
+    async def register(self, websocket, username, password, userid):
+        self.clients[websocket] = {"username": username, "password": password, "userid": userid}
         print(f"Client registered: {username}")
 
     async def unregister(self, websocket):

@@ -3,6 +3,9 @@ import json
 from src.ws.ws_manager import WebSocketManager
 from src.tcp.parser.h02 import decode_h02
 from src.tcp.parser.gps103 import decode_gps103
+from src.tcp.sender.position import update_position
+from src.tcp.sender.events import send_event
+from datetime import datetime
 
 
 class TCPServer:
@@ -14,14 +17,24 @@ class TCPServer:
     async def tcp_to_json(self, port, data):
         if port == 6001:
             # Coban
+            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Llegada")
             data_dict = decode_gps103(data)
-            print(f"{port}, {data}")
-            print(data_dict)
+            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Parseo completo")
+            if data_dict["type"] == "position":
+                devices = await update_position(data_dict, self.ws_manager.devices)
+                await self.ws_manager.save_devices(devices)
+            elif data_dict["type"] == "event":
+                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Envio a send_event")
+                users, data = await send_event(data_dict, self.ws_manager.devices)
         elif port == 6013:
             # Sinotrack
             data_dict = decode_h02(data)
-            print(f"{port}, {data}")
-            print(data_dict)
+            if data_dict["type"] == "position":
+                devices = await update_position(data_dict, self.ws_manager.devices)
+                await self.ws_manager.save_devices(devices)
+            elif data_dict["type"] == "event":
+                users, data = await send_event(data_dict, self.ws_manager.devices)
+
         return None
 
     async def handle_client(self, reader, writer):

@@ -36,7 +36,7 @@ class WebSocketServer:
 
         ws = web.WebSocketResponse()
         await ws.prepare(request)  # Preparar el WebSocket antes de registrarlo
-        await self.ws_manager.register(ws, username, password)
+        await self.ws_manager.register(ws, username, password, auth["id"])
 
         # Enviar dispositivos al cliente
         await self.ws_manager.send_to_client(ws, {"devices": devices})
