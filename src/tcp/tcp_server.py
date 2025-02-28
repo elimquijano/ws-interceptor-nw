@@ -20,7 +20,9 @@ class TCPServer:
             if devices is not None:
                 await self.ws_manager.save_devices(devices)
         elif data["type"] == "event" and data["data"]["event_type"] != "unknown":
-            result = await get_users_and_process_data(port, data, self.ws_manager.devices)
+            result = await get_users_and_process_data(
+                port, data, self.ws_manager.devices
+            )
             if result is not None:
                 users = result["users"]
                 event_data = result["process_data"]
@@ -29,6 +31,7 @@ class TCPServer:
                 print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Evento enviado")
 
     async def tcp_to_json(self, port, data):
+        print(f"{port} - {data}")
         if port == 6001:  # Coban
             data_dict = decode_gps103(data)
         elif port == 6013:  # Sinotrack
