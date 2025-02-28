@@ -16,10 +16,8 @@ class TCPServer:
 
     async def tcp_to_json(self, port, data):
         if port == 6001:    # Coban
-            print(f"{port}: {data}")
             data_dict = decode_gps103(data)
         elif port == 6013:  # Sinotrack
-            return
             data_dict = decode_h02(data)
         elif port == 6027:  # Teltonika
             return
