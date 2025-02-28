@@ -23,10 +23,6 @@ def check_datetime_valid(port, datetime_str):
         min_acceptable_datetime = current_datetime - timedelta(hours=1, seconds=5)
         max_acceptable_datetime = current_datetime + timedelta(seconds=5)
 
-        # Imprimir los valores para depuración
-        print(f"VEHICULO: {vehicle_datetime}")
-        print(f"ACTUAL: {current_datetime}")
-        print(f"Rango aceptable: {min_acceptable_datetime} - {max_acceptable_datetime}")
 
         # Verificar si la fecha y hora del vehículo está dentro del rango aceptable
         if min_acceptable_datetime <= vehicle_datetime <= max_acceptable_datetime:
@@ -34,4 +30,7 @@ def check_datetime_valid(port, datetime_str):
         else:
             return False
     else:
-        return False
+        # Imprimir los valores para depuración
+        print(f"VEHICULO: {vehicle_datetime}")
+        print(f"ACTUAL: {current_datetime}")
+        return True
