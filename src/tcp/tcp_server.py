@@ -28,8 +28,9 @@ class TCPServer:
         # Hilo de tratamiento de datos en segundo plano
         if data_dict["type"] == "position":
             devices = update_position(port, data_dict, self.ws_manager.devices)
-            await self.ws_manager.save_devices(devices)
-        elif data_dict["type"] == "event":
+            if devices is not None:
+                await self.ws_manager.save_devices(devices)
+        elif data_dict["type"] == "event" and data_dict["data"]["event_type"] != "unknown":
             users, data = await send_event(data_dict, self.ws_manager.devices)
         return
 
