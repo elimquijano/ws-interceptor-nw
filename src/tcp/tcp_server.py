@@ -15,13 +15,14 @@ class TCPServer:
         self.ws_manager = WebSocketManager()
 
     async def tcp_to_json(self, port, data):
-        print(f"{port}: {data}")
         if port == 6001:    # Coban
+            return
             data_dict = decode_gps103(data)
         elif port == 6013:  # Sinotrack
+            print(f"{port}: {data}")
             data_dict = decode_h02(data)
         elif port == 6027:  # Teltonika
-            pass
+            return
         else:
             return
         # Hilo de tratamiento de datos en segundo plano
