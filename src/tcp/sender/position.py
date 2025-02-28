@@ -30,6 +30,10 @@ def check_datetime_valid(port, datetime_str):
         else:
             return False
     else:
+        # Convertir la cadena de fecha y hora del vehículo a un objeto datetime
+        vehicle_datetime = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S')
+        # Obtener la hora actual
+        current_datetime = datetime.now()
         # Imprimir los valores para depuración
         print(f"VEHICULO: {vehicle_datetime}")
         print(f"ACTUAL: {current_datetime}")
