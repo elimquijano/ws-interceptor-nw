@@ -15,42 +15,31 @@ def update_position(port, event, devices):
         return None
 
 def check_datetime_valid(port, datetime_str):
+    # Convertir la cadena de fecha y hora del vehículo a un objeto datetime
+    vehicle_datetime = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S')
+    # Obtener la hora actual
+    current_datetime = datetime.now()
+
     if port == 6013:  # Sinotrack
-        # Convertir la cadena de fecha y hora del vehículo a un objeto datetime
-        vehicle_datetime = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S')
-        # Obtener la hora actual
-        current_datetime = datetime.now()
-
-        # Calcular el rango aceptable (una hora menos y un máximo de 5 segundos de diferencia)
-        min_acceptable_datetime = current_datetime - timedelta(hours=1, seconds=5)
-        max_acceptable_datetime = current_datetime + timedelta(seconds=5)
-
-        # Verificar si la fecha y hora del vehículo está dentro del rango aceptable
-        if min_acceptable_datetime <= vehicle_datetime <= max_acceptable_datetime:
-            return True
-        else:
-            return False
+        # Calcular el rango aceptable (una hora menos y un máximo de 10 segundos de diferencia)
+        min_acceptable_datetime = current_datetime - timedelta(hours=1, seconds=10)
+        max_acceptable_datetime = current_datetime + timedelta(seconds=10)
     elif port == 6001:  # Coban
-        # Convertir la cadena de fecha y hora del vehículo a un objeto datetime
-        vehicle_datetime = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S')
-        # Obtener la hora actual
-        current_datetime = datetime.now()
-
-        # Calcular el rango aceptable (seis horas menos y un máximo de 5 segundos de diferencia)
-        min_acceptable_datetime = current_datetime - timedelta(hours=6, seconds=5)
-        max_acceptable_datetime = current_datetime + timedelta(seconds=5)
-
-        # Imprimir los valores para depuración
-        print(f"VEHICULO: {vehicle_datetime}")
-        print(f"ACTUAL: {current_datetime}")
-
-        # Verificar si la fecha y hora del vehículo está dentro del rango aceptable
-        if min_acceptable_datetime <= vehicle_datetime <= max_acceptable_datetime:
-            print(f"Rango aceptable")
-            return True
-        else:
-            return False
+        # Calcular el rango aceptable (seis horas menos y un máximo de 10 segundos de diferencia)
+        min_acceptable_datetime = current_datetime - timedelta(hours=6, seconds=10)
+        max_acceptable_datetime = current_datetime + timedelta(seconds=10)
     elif port == 6027:  # Teltonika
+        return True
+    else:
+        return False
+
+    # Imprimir los valores para depuración
+    print(f"VEHICULO: {vehicle_datetime}")
+    print(f"ACTUAL: {current_datetime}")
+
+    # Verificar si la fecha y hora del vehículo está dentro del rango aceptable
+    if min_acceptable_datetime <= vehicle_datetime <= max_acceptable_datetime:
+        print(f"Rango aceptable")
         return True
     else:
         return False
