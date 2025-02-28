@@ -4,7 +4,7 @@ from src.ws.ws_manager import WebSocketManager
 from src.tcp.parser.h02 import decode_h02
 from src.tcp.parser.gps103 import decode_gps103
 from src.tcp.sender.position import update_position
-from src.tcp.sender.events import send_event
+from src.tcp.sender.events import get_users_and_process_data, send_push_notificacion
 from datetime import datetime
 
 
@@ -14,8 +14,22 @@ class TCPServer:
         self.port = port
         self.ws_manager = WebSocketManager()
 
+    async def process_data(self, port, data, devices):
+        if data["type"] == "position":
+            devices = update_position(port, data, self.ws_manager.devices)
+            if devices is not None:
+                await self.ws_manager.save_devices(devices)
+        elif data["type"] == "event" and data["data"]["event_type"] != "unknown":
+            result = await get_users_and_process_data(port, data, self.ws_manager.devices)
+            if result is not None:
+                users = result["users"]
+                event_data = result["process_data"]
+                asyncio.create_task(send_push_notificacion(users, event_data))
+                asyncio.create_task(self.ws_manager.send_events(users, event_data))
+                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Evento enviado")
+
     async def tcp_to_json(self, port, data):
-        if port == 6001:    # Coban
+        if port == 6001:  # Coban
             data_dict = decode_gps103(data)
         elif port == 6013:  # Sinotrack
             data_dict = decode_h02(data)
@@ -23,13 +37,11 @@ class TCPServer:
             return
         else:
             return
-        # Hilo de tratamiento de datos en segundo plano
-        if data_dict["type"] == "position":
-            devices = update_position(port, data_dict, self.ws_manager.devices)
-            if devices is not None:
-                await self.ws_manager.save_devices(devices)
-        elif data_dict["type"] == "event" and data_dict["data"]["event_type"] != "unknown":
-            users, data = await send_event(data_dict, self.ws_manager.devices)
+
+        # Iniciar el procesamiento de datos en segundo plano
+        asyncio.create_task(self.process_data(port, data_dict, self.ws_manager.devices))
+
+        # Retornar inmediatamente para indicar que la ejecución ha terminado
         return
 
     async def handle_client(self, reader, writer):
