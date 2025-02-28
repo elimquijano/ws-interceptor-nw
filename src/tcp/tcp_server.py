@@ -15,27 +15,21 @@ class TCPServer:
         self.ws_manager = WebSocketManager()
 
     async def tcp_to_json(self, port, data):
-        if port == 6001:
-            # Coban
-            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Llegada")
+        if port == 6001:    # Coban
             data_dict = decode_gps103(data)
-            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Parseo completo")
-            if data_dict["type"] == "position":
-                devices = update_position(data_dict, self.ws_manager.devices)
-                await self.ws_manager.save_devices(devices)
-            elif data_dict["type"] == "event":
-                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Envio a send_event")
-                users, data = await send_event(data_dict, self.ws_manager.devices)
-        elif port == 6013:
-            # Sinotrack
+        elif port == 6013:  # Sinotrack
             data_dict = decode_h02(data)
-            if data_dict["type"] == "position":
-                devices = update_position(data_dict, self.ws_manager.devices)
-                await self.ws_manager.save_devices(devices)
-            elif data_dict["type"] == "event":
-                users, data = await send_event(data_dict, self.ws_manager.devices)
-
-        return None
+        elif port == 6027:  # Teltonika
+            pass
+        else:
+            return
+        # Hilo de tratamiento de datos en segundo plano
+        if data_dict["type"] == "position":
+            devices = update_position(data_dict, self.ws_manager.devices)
+            await self.ws_manager.save_devices(devices)
+        elif data_dict["type"] == "event":
+            users, data = await send_event(data_dict, self.ws_manager.devices)
+        return
 
     async def handle_client(self, reader, writer):
         addr = writer.get_extra_info("peername")

@@ -1,6 +1,6 @@
 import json
+import asyncio
 from datetime import datetime
-
 
 class WebSocketManager:
     _instance = None
@@ -31,10 +31,17 @@ class WebSocketManager:
             # Convertir objetos datetime a cadenas de texto
             message = self.serialize_datetime(message)
             await websocket.send_str(json.dumps(message))
-            print(f"Message sent to {self.clients[websocket]['username']}")
+            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Message sent to {self.clients[websocket]['username']}")
         except Exception as e:
             print(f"Error sending to {self.clients[websocket]['username']}: {e}")
             await self.unregister(websocket)
+
+    async def send_to_all_clients(self, user_id, message):
+        tasks = []
+        for websocket, client_info in self.clients.items():
+            if client_info["userid"] == user_id:
+                tasks.append(self.send_to_client(websocket, message))
+        await asyncio.gather(*tasks)
 
     async def save_devices(self, devices):
         self.devices = devices
