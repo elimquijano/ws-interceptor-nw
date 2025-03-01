@@ -1,22 +1,26 @@
 from datetime import datetime, timedelta
 
+
 def update_position(port, event, devices):
-    if event["type"] == "position" and check_datetime_valid(port, event["data"]["datetime"]):
+    if event["type"] == "position" and check_datetime_valid(
+        port, event["data"]["datetime"]
+    ):
         data = event["data"]
         for device in devices:
             if device["uniqueid"] == data["imei"]:
                 device["latitude"] = data["latitude"]
                 device["longitude"] = data["longitude"]
-                device["speed"] = data["speed"]
-                device["course"] = data["course"]
+                device["speed"] = data["speed"] if data["speed"] else 0.0
+                device["course"] = data["course"] if data["course"] else 0.0
                 break
         return devices
     else:
         return None
 
+
 def check_datetime_valid(port, datetime_str):
     # Convertir la cadena de fecha y hora del vehículo a un objeto datetime
-    vehicle_datetime = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S')
+    vehicle_datetime = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S")
     # Obtener la hora actual
     current_datetime = datetime.now()
 

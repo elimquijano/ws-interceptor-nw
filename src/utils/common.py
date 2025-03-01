@@ -8,6 +8,9 @@ load_dotenv()
 URL_HOST_TRACCAR = os.getenv("URL_HOST_TRACCAR")
 API_URL_TRACCAR = URL_HOST_TRACCAR + "api/"
 
+URL_HOST_ADMIN_NWPERU = os.getenv("URL_HOST_ADMIN_NWPERU")
+API_URL_ADMIN_NWPERU = URL_HOST_ADMIN_NWPERU + "api/"
+
 
 def login(username, password):
     # URL a la que se enviará la petición

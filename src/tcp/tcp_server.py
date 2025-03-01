@@ -4,7 +4,7 @@ from src.ws.ws_manager import WebSocketManager
 from src.tcp.parser.h02 import decode_h02
 from src.tcp.parser.gps103 import decode_gps103
 from src.tcp.sender.position import update_position
-from src.tcp.sender.events import get_users_and_process_data, send_push_notificacion
+from src.tcp.sender.events import get_users_and_process_data, send_notificacion
 from datetime import datetime
 
 
@@ -26,7 +26,7 @@ class TCPServer:
             if result is not None:
                 users = result["users"]
                 event_data = result["process_data"]
-                asyncio.create_task(send_push_notificacion(users, event_data))
+                asyncio.create_task(send_notificacion(users, event_data))
                 asyncio.create_task(self.ws_manager.send_events(users, event_data))
                 print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Evento enviado")
 
