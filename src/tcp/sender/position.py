@@ -8,10 +8,10 @@ def update_position(port, event, devices):
         data = event["data"]
         for device in devices:
             if device["uniqueid"] == data["imei"]:
-                device["latitude"] = data["latitude"]
-                device["longitude"] = data["longitude"]
-                device["speed"] = data["speed"] if data["speed"] else 0.0
-                device["course"] = data["course"] if data["course"] else 0.0
+                device["latitude"] = data.get("latitude", 0.0)
+                device["longitude"] = data.get("longitude", 0.0)
+                device["speed"] = data.get("speed", 0.0)
+                device["course"] = data.get("course", 0.0)
                 break
         return devices
     else:
