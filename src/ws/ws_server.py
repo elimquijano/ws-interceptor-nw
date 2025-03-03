@@ -82,13 +82,33 @@ class WebSocketServer:
         devices = device_controller.get_devices()
         await self.ws_manager.save_devices(devices)
 
+    async def http_handler(self, request):
+        method = request.method
+        path = request.path
+
+        if path == "/api/sos" and method == "POST":
+            data = await request.json()
+            # Procesar la solicitud POST para /api/sos
+            print(f"Received SOS data: {data}")
+            return web.Response(text="SOS data received successfully")
+
+        else:
+            return web.HTTPNotFound(reason="Route not found")
+
     async def start(self):
         await self.save_devices_init()
-        # Crear una aplicación web y agregar el manejador de WebSocket
+        # Crear una aplicación web y agregar los manejadores de WebSocket y HTTP
         app = web.Application()
-        app.router.add_get("/", self.websocket_handler)  # Escuchar en la raíz
+        app.router.add_get("/", self.websocket_handler)  # Escuchar en la raíz para WebSocket
+        app.router.add_route("*", "/api/{tail:.*}", self.http_handler)  # Escuchar en /api para HTTP
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.TCPSite(runner, self.host, self.port)
         await site.start()
-        print(f"WebSocket Server running on ws://{self.host}:{self.port}")
+        print(f"WebSocket Server running on ws://{self.host}:{self.port}/")
+        print(f"HTTP API endpoint running on http://{self.host}:{self.port}/api")
+
+# Ejemplo de uso
+if __name__ == "__main__":
+    server = WebSocketServer()
+    asyncio.run(server.start())
