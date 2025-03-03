@@ -5,6 +5,7 @@ from src.utils.common import login
 from src.controllers.user_devices_controller import UserDevicesController
 from src.controllers.devices_controller import DevicesController
 from src.tcp.sender.events import send_notificacion
+from datetime import datetime
 
 
 class WebSocketServer:
@@ -73,6 +74,15 @@ class WebSocketServer:
 
         return ws
 
+    async def http_handler(self, request):
+        method = request.method
+        path = request.path
+
+        if path == "/api/sos" and method == "POST":
+            return await self.handle_sos_request(request)
+
+        return web.HTTPNotFound(reason="Route not found", status=404)
+
     async def send_devices_periodically(self, user_id):
         ud_controller = UserDevicesController()
         while True:
@@ -94,15 +104,6 @@ class WebSocketServer:
         device_controller = DevicesController()
         devices = device_controller.get_devices()
         await self.ws_manager.save_devices(devices)
-
-    async def http_handler(self, request):
-        method = request.method
-        path = request.path
-
-        if path == "/api/sos" and method == "POST":
-            return await self.handle_sos_request(request)
-
-        return web.HTTPNotFound(reason="Route not found", status=404)
 
     async def handle_sos_request(self, request):
         data = await request.json()
@@ -126,7 +127,7 @@ class WebSocketServer:
             "name": found_device["name"],
             "uniqueid": found_device["uniqueid"],
             "type": "sos",
-            "eventtime": found_device["lastupdate"],
+            "eventtime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "latitude": found_device["latitude"],
             "longitude": found_device["longitude"],
         }

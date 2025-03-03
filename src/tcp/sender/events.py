@@ -128,7 +128,7 @@ async def get_tokens_and_send_notification(userid, event):
 
 async def send_notificacion(users, event):
     for user in users:
-        asyncio.create_task(send_push_notification(user["userid"], event))
+        asyncio.create_task(get_tokens_and_send_notification(user["userid"], event))
 
 
 async def get_users_and_process_data(port, event, devices):
