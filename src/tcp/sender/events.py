@@ -7,17 +7,16 @@ from src.utils.common import API_URL_ADMIN_NWPERU
 
 
 async def send_push_notification(token, event):
-    print(token, event)
     # URL de la API de Expo para enviar notificaciones
     url = "https://exp.host/--/api/v2/push/send"
     # Encabezados de la solicitud
     headers = {
-            "Accept": "application/json",
-            "Accept-Encoding": "gzip, deflate",
-            "Content-Type": "application/json",
-        }
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip, deflate",
+        "Content-Type": "application/json",
+    }
     # Datos de la notificación
-    
+
     if event["type"] == "alarm":
         data = {
             "to": token["token"],
@@ -69,7 +68,7 @@ async def send_push_notification(token, event):
             },
             "android": {
                 "vibrationPattern": [0, 250, 250, 250],
-            }
+            },
         }
     elif event["type"] == "ignitionOff":
         data = {
@@ -82,7 +81,7 @@ async def send_push_notification(token, event):
             },
             "android": {
                 "vibrationPattern": [0, 250, 250, 250],
-            }
+            },
         }
     elif event["type"] == "powerCut":
         data = {
@@ -95,7 +94,7 @@ async def send_push_notification(token, event):
             },
             "android": {
                 "vibrationPattern": [0, 250, 250, 250],
-            }
+            },
         }
     else:
         data = None
@@ -105,7 +104,7 @@ async def send_push_notification(token, event):
         try:
             response = requests.post(url, headers=headers, data=json.dumps(data))
             # Muestra el estado de la respuesta
-            print(f"Estado: {response.status_code}")
+            print({"status": response.status_code, "message": response.json()})
 
         except requests.exceptions.RequestException as e:
             print(f"Ocurrió un error al realizar la solicitud: {e}")
@@ -118,7 +117,6 @@ async def get_tokens_and_send_notification(userid, event):
         response = requests.get(url)
         if response.status_code == 200:
             tokens = response.json()
-            print(f"Tokens: {tokens}")
             for token in tokens:
                 # enviar notificacion a cada token
                 asyncio.create_task(send_push_notification(token, event))
