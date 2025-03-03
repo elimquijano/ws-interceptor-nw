@@ -156,8 +156,8 @@ async def get_users_and_process_data(port, event, devices):
                 "uniqueid": data["imei"],
                 "type": data["event_type"],
                 "eventtime": data["datetime"],
-                "latitude": data["latitude"],
-                "longitude": data["longitude"],
+                "latitude": found_device["latitude"],
+                "longitude": found_device["longitude"],
             }
             result = {"users": users, "process_data": process_data}
             return result
