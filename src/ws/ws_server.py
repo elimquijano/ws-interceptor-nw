@@ -4,13 +4,17 @@ from src.ws.ws_manager import WebSocketManager
 from src.utils.common import login
 from src.controllers.user_devices_controller import UserDevicesController
 from src.controllers.devices_controller import DevicesController
+from src.tcp.sender.events import send_notificacion
+
 
 class WebSocketServer:
     def __init__(self, host="0.0.0.0", port=7006):
         self.host = host
         self.port = port
         self.ws_manager = WebSocketManager()
-        self.periodic_tasks = {}  # Diccionario para almacenar tareas periódicas por user_id
+        self.periodic_tasks = (
+            {}
+        )  # Diccionario para almacenar tareas periódicas por user_id
 
     async def websocket_handler(self, request):
         # Extraer parámetros de la URL
@@ -45,7 +49,9 @@ class WebSocketServer:
 
         # Iniciar la tarea en segundo plano para enviar dispositivos cada 5 segundos
         if user_id not in self.periodic_tasks:
-            self.periodic_tasks[user_id] = asyncio.create_task(self.send_devices_periodically(user_id))
+            self.periodic_tasks[user_id] = asyncio.create_task(
+                self.send_devices_periodically(user_id)
+            )
 
         try:
             async for msg in ws:
@@ -58,7 +64,10 @@ class WebSocketServer:
         finally:
             await self.ws_manager.unregister(ws)
             # Si no hay más conexiones para este usuario, cancelar la tarea periódica
-            if not any(client_info["userid"] == user_id for client_info in self.ws_manager.clients.values()):
+            if not any(
+                client_info["userid"] == user_id
+                for client_info in self.ws_manager.clients.values()
+            ):
                 self.periodic_tasks[user_id].cancel()
                 del self.periodic_tasks[user_id]
 
@@ -67,13 +76,17 @@ class WebSocketServer:
     async def send_devices_periodically(self, user_id):
         ud_controller = UserDevicesController()
         while True:
-            user_devices_task = asyncio.create_task(asyncio.to_thread(ud_controller.get_devices, user_id))
+            user_devices_task = asyncio.create_task(
+                asyncio.to_thread(ud_controller.get_devices, user_id)
+            )
             await asyncio.sleep(5)
             user_devices = await user_devices_task
             # Crear un conjunto de deviceid para búsqueda rápida
             device_ids = {item["deviceid"] for item in user_devices}
             # Filtrar vehículos solo del usuario conectado
-            devices = [obj for obj in self.ws_manager.devices if obj["id"] in device_ids]
+            devices = [
+                obj for obj in self.ws_manager.devices if obj["id"] in device_ids
+            ]
             # Enviar dispositivos a todas las conexiones del usuario
             await self.ws_manager.send_to_all_clients(user_id, {"devices": devices})
 
@@ -87,26 +100,60 @@ class WebSocketServer:
         path = request.path
 
         if path == "/api/sos" and method == "POST":
-            data = await request.json()
-            # Procesar la solicitud POST para /api/sos
-            print(f"Received SOS data: {data}")
-            return web.Response(text="SOS data received successfully")
+            return await self.handle_sos_request(request)
 
-        else:
-            return web.HTTPNotFound(reason="Route not found")
+        return web.HTTPNotFound(reason="Route not found", status=404)
+
+    async def handle_sos_request(self, request):
+        data = await request.json()
+        device_id = data.get("deviceid")
+
+        if not device_id:
+            return web.HTTPBadRequest(reason="Missing deviceid in request", status=400)
+
+        found_device = next(
+            (device for device in self.ws_manager.devices if device["id"] == device_id),
+            None,
+        )
+        if not found_device:
+            return web.HTTPNotFound(reason="Device not found", status=404)
+
+        # Buscar usuarios asociados al dispositivo
+        ud_controller = UserDevicesController()
+        users = ud_controller.get_users(device_id)
+        sos_data = {
+            "deviceid": found_device["id"],
+            "name": found_device["name"],
+            "uniqueid": found_device["uniqueid"],
+            "type": "sos",
+            "eventtime": found_device["lastupdate"],
+            "latitude": found_device["latitude"],
+            "longitude": found_device["longitude"],
+        }
+
+        # Procesar la solicitud POST para /api/sos
+        asyncio.create_task(send_notificacion(users, sos_data))
+        asyncio.create_task(self.ws_manager.send_events(users, sos_data))
+
+        return web.Response(text="SOS data received successfully", status=200)
 
     async def start(self):
         await self.save_devices_init()
         # Crear una aplicación web y agregar los manejadores de WebSocket y HTTP
         app = web.Application()
-        app.router.add_get("/", self.websocket_handler)  # Escuchar en la raíz para WebSocket
-        app.router.add_route("*", "/api/{tail:.*}", self.http_handler)  # Escuchar en /api para HTTP
+        app.router.add_get(
+            "/", self.websocket_handler
+        )  # Escuchar en la raíz para WebSocket
+        app.router.add_route(
+            "*", "/api/{tail:.*}", self.http_handler
+        )  # Escuchar en /api para HTTP
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.TCPSite(runner, self.host, self.port)
         await site.start()
         print(f"WebSocket Server running on ws://{self.host}:{self.port}/")
         print(f"HTTP API endpoint running on http://{self.host}:{self.port}/api")
+
 
 # Ejemplo de uso
 if __name__ == "__main__":
