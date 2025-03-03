@@ -22,7 +22,7 @@ async def send_push_notification(token, event):
             "to": token["token"],
             "sound": "alarmanoti.wav",
             "title": "¡Alerta!",
-            "body": f"Movimiento inusual en su vehiculo {event["name"]}",
+            "body": f"Movimiento inusual en su vehiculo {event['name']}",
             "data": {
                 "vehicleId": event["deviceid"],
                 "screen": "Maps",
@@ -42,7 +42,7 @@ async def send_push_notification(token, event):
             "to": token["token"],
             "sound": "sirena.wav",
             "title": "¡ALERTA DE SOS!",
-            "body": f"Se ha activado una alerta de SOS en su vehículo {event["name"]}",
+            "body": f"Se ha activado una alerta de SOS en su vehículo {event['name']}",
             "data": {
                 "vehicleId": event["deviceid"],
                 "screen": "Maps",
@@ -61,7 +61,7 @@ async def send_push_notification(token, event):
         data = {
             "to": token["token"],
             "title": "¡Alerta!",
-            "body": f"Encendido del vehiculo {event["name"]}",
+            "body": f"Encendido del vehiculo {event['name']}",
             "data": {
                 "vehicleId": event["deviceid"],
                 "screen": "Maps",
@@ -74,7 +74,7 @@ async def send_push_notification(token, event):
         data = {
             "to": token["token"],
             "title": "¡Alerta!",
-            "body": f"Apagado del vehiculo {event["name"]}",
+            "body": f"Apagado del vehiculo {event['name']}",
             "data": {
                 "vehicleId": event["deviceid"],
                 "screen": "Maps",
@@ -87,7 +87,7 @@ async def send_push_notification(token, event):
         data = {
             "to": token["token"],
             "title": "¡Alerta!",
-            "body": f"Corte de energía en su vehiculo {event["name"]}",
+            "body": f"Corte de energía en su vehiculo {event['name']}",
             "data": {
                 "vehicleId": event["deviceid"],
                 "screen": "Maps",
