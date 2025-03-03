@@ -7,6 +7,7 @@ from src.utils.common import API_URL_ADMIN_NWPERU
 
 
 async def send_push_notification(token, event):
+    print(token, event)
     # URL de la API de Expo para enviar notificaciones
     url = "https://exp.host/--/api/v2/push/send"
     # Encabezados de la solicitud
@@ -117,6 +118,7 @@ async def get_tokens_and_send_notification(userid, event):
         response = requests.get(url)
         if response.status_code == 200:
             tokens = response.json()
+            print(f"Tokens: {tokens}")
             for token in tokens:
                 # enviar notificacion a cada token
                 asyncio.create_task(send_push_notification(token, event))
