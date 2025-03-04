@@ -81,7 +81,7 @@ class WebSocketServer:
 
         if path == "/api/sos" and method == "POST":
             return await self.handle_sos_request(request)
-        elif path == "/api/update-icons" and method == "POST":
+        elif path == "/api/update-icons" and method == "GET":
             asyncio.create_task(self.save_devices_init())
             return web.Response(text="Update icons successfully", status=200)
 
