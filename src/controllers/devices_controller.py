@@ -1,6 +1,8 @@
 import os
 from dotenv import load_dotenv
+import requests
 from src.db.database import Database
+from src.utils.common import API_URL_ADMIN_NWPERU
 
 # Cargar las variables de entorno desde el archivo .env
 load_dotenv()
@@ -19,15 +21,14 @@ class DevicesController:
         self.db.create_connection()
 
     def get_devices(self):
-        connection = self.db.get_connection()
-        if connection:
-            cursor = connection.cursor(dictionary=True)
-            query = "SELECT d.*, p.latitude, p.longitude, p.speed, p.course FROM tc_devices d LEFT JOIN tc_positions p ON d.positionid = p.id"
-            cursor.execute(query)
-            devices = cursor.fetchall()
-            cursor.close()
-            return devices
-        return None
+        try:
+            url = f"{API_URL_ADMIN_NWPERU}alldevices-info"
+            response = requests.get(url)
+            if response.status_code == 200:
+                return response.json()
+        except Exception as e:
+            print(f"Error al obtener los dispositivos: {e}")
+            return None
 
     def get_user(self, user_id):
         connection = self.db.get_connection()

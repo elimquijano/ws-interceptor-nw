@@ -32,6 +32,9 @@ class WebSocketServer:
             print("Authentication failed")
             return web.HTTPForbidden(reason="Authentication failed")
 
+        # Obtener todos los dispositivos de la base de datos
+        asyncio.create_task(self.save_devices_init())
+        # Obtener dispositivos del usuario conectado
         user_id = auth["id"]
         ud_controller = UserDevicesController()
         user_devices = await asyncio.to_thread(ud_controller.get_devices, user_id)
