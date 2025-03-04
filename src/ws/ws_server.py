@@ -32,8 +32,6 @@ class WebSocketServer:
             print("Authentication failed")
             return web.HTTPForbidden(reason="Authentication failed")
 
-        # Obtener todos los dispositivos de la base de datos
-        asyncio.create_task(self.save_devices_init())
         # Obtener dispositivos del usuario conectado
         user_id = auth["id"]
         ud_controller = UserDevicesController()
@@ -83,6 +81,9 @@ class WebSocketServer:
 
         if path == "/api/sos" and method == "POST":
             return await self.handle_sos_request(request)
+        elif path == "/api/update-icons" and method == "POST":
+            asyncio.create_task(self.save_devices_init())
+            return web.Response(text="Update icons successfully", status=200)
 
         return web.HTTPNotFound(reason="Route not found", status=404)
 
