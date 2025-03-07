@@ -12,7 +12,7 @@ class Events:
         self.ws_manager = WebSocketManager()
 
     async def send_events_to_users(self, port, event):
-        devices = await self.ws_manager.devices
+        devices = self.ws_manager.devices
         if event["type"] == "event":
             found_device = next(
                 (device for device in devices if device["uniqueid"] == event["imei"]), None
