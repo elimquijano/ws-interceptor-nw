@@ -23,7 +23,7 @@ class TCPServer:
             asyncio.create_task(e.send_events_to_users(port, data))
 
     async def tcp_to_json(self, port, data):
-        #print(f"\n{port} - {data}")
+        print(f"\n{port} - {data}")
         if port == 6001:  # Coban
             data_array = decode_gps103(data)
         elif port == 6013:  # Sinotrack
@@ -35,7 +35,7 @@ class TCPServer:
 
         if len(data_array) > 0:
             for data_dict in data_array:
-                #print(data_dict)
+                print(data_dict)
                 # Iniciar el procesamiento de datos en segundo plano
                 await self.process_data(port, data_dict)
 

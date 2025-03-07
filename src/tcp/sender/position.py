@@ -36,6 +36,7 @@ class Position:
     async def check_geofence(self, device, event):
         dg_controller = DeviceGeofenceController()
         geofences = dg_controller.get_geofences(device["id"])
+        print(f"Geofences: {geofences}")
         for geofence in geofences:
             prev_position = {
                 "latitude": device["latitude"],
@@ -48,6 +49,7 @@ class Position:
             geofence_event = check_geofence_event(
                 geofence["area"], prev_position, current_position
             )
+            print(f"Geofence event: {geofence_event}")
             if geofence_event is not None:
                 geofence_data = {
                     "deviceid": device["id"],
@@ -64,7 +66,6 @@ class Position:
                 users = ud_controller.get_users(device["id"])
                 asyncio.create_task(send_notificacion(users, geofence_data))
                 asyncio.create_task(self.ws_manager.send_events(users, geofence_data))
-                print("Geofence event detected")
 
     async def update_lastupdate(self, port, event):
         devices = self.ws_manager.devices
