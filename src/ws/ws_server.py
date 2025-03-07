@@ -4,8 +4,8 @@ from src.ws.ws_manager import WebSocketManager
 from src.utils.common import login
 from src.controllers.user_devices_controller import UserDevicesController
 from src.controllers.devices_controller import DevicesController
-from src.tcp.sender.events import send_notificacion
-from datetime import datetime
+from src.tcp.sender.events import Events
+from datetime import datetime, timedelta
 
 
 class WebSocketServer:
@@ -81,11 +81,11 @@ class WebSocketServer:
 
         if path == "/api/sos" and method == "POST":
             return await self.handle_sos_request(request)
-        elif path == "/api/update-icons" and method == "GET":
+        elif path == "/api/update-devices" and method == "GET":
             asyncio.create_task(self.save_devices_init())
-            return web.Response(text="Update icons successfully", status=200)
+            return web.Response(text="Vehiculos actualizados correctamente", status=200)
 
-        return web.HTTPNotFound(reason="Route not found", status=404)
+        return web.HTTPNotFound(reason="Ruta no encontrada", status=404)
 
     async def send_devices_periodically(self, user_id):
         ud_controller = UserDevicesController()
@@ -114,36 +114,41 @@ class WebSocketServer:
         device_id = data.get("deviceid")
 
         if not device_id:
-            return web.HTTPBadRequest(reason="Missing deviceid in request", status=400)
+            return web.HTTPBadRequest(
+                reason="Falta el deviceid en la solicitud", status=400
+            )
 
         found_device = next(
             (device for device in self.ws_manager.devices if device["id"] == device_id),
             None,
         )
         if not found_device:
-            return web.HTTPNotFound(reason="Device not found", status=404)
-
-        # Buscar usuarios asociados al dispositivo
-        ud_controller = UserDevicesController()
-        users = ud_controller.get_users(device_id)
-        sos_data = {
-            "deviceid": found_device["id"],
-            "name": found_device["name"],
-            "uniqueid": found_device["uniqueid"],
-            "type": "sos",
-            "eventtime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "latitude": found_device["latitude"],
-            "longitude": found_device["longitude"],
-        }
+            return web.HTTPNotFound(reason="Vehiculo no encontrado", status=404)
 
         # Procesar la solicitud POST para /api/sos
-        asyncio.create_task(send_notificacion(users, sos_data))
-        asyncio.create_task(self.ws_manager.send_events(users, sos_data))
+        e = Events()
+        asyncio.create_task(e.create_sos_event(found_device))
 
-        return web.Response(text="SOS data received successfully", status=200)
+        return web.Response(text="Evento SOS creado correctamente", status=200)
+
+    async def update_device_status(self):
+        while True:
+            await asyncio.sleep(60)  # Esperar 1 minuto
+            current_time = datetime.now()
+            for device in self.ws_manager.devices:
+                last_update_time = datetime.strptime(
+                    device["lastupdate"], "%Y-%m-%d %H:%M:%S"
+                )
+                if current_time - last_update_time > timedelta(minutes=1):
+                    device["status"] = "offline"
+                else:
+                    device["status"] = "online"
+            print("Device statuses updated")
 
     async def start(self):
         await self.save_devices_init()
+        # Iniciar la tarea en segundo plano para actualizar el estado de los dispositivos
+        asyncio.create_task(self.update_device_status())
         # Crear una aplicación web y agregar los manejadores de WebSocket y HTTP
         app = web.Application()
         app.router.add_get(
@@ -158,9 +163,3 @@ class WebSocketServer:
         await site.start()
         print(f"WebSocket Server running on ws://{self.host}:{self.port}/")
         print(f"HTTP API endpoint running on http://{self.host}:{self.port}/api")
-
-
-# Ejemplo de uso
-if __name__ == "__main__":
-    server = WebSocketServer()
-    asyncio.run(server.start())

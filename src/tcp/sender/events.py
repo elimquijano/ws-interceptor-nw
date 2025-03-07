@@ -1,10 +1,53 @@
 import json
 import requests
 import asyncio
-from datetime import datetime
 from src.controllers.user_devices_controller import UserDevicesController
 from src.utils.common import API_URL_ADMIN_NWPERU
+from src.ws.ws_manager import WebSocketManager
+from datetime import datetime
 
+
+class Events:
+    def __init__(self):
+        self.ws_manager = WebSocketManager()
+
+    async def send_events_to_users(self, port, event):
+        devices = await self.ws_manager.devices
+        if event["type"] == "event":
+            found_device = next(
+                (device for device in devices if device["uniqueid"] == event["imei"]), None
+            )
+            if found_device:
+                ud_controller = UserDevicesController()
+                users = ud_controller.get_users(found_device["id"])
+                process_data = {
+                    "deviceid": found_device["id"],
+                    "name": found_device["name"],
+                    "uniqueid": event["imei"],
+                    "type": event["event_type"],
+                    "eventtime": event["datetime"],
+                    "latitude": found_device["latitude"],
+                    "longitude": found_device["longitude"],
+                }
+                send_notificacion(users, process_data)
+                self.ws_manager.send_events(users, process_data)
+
+    async def create_sos_event(self, device):
+        # Buscar usuarios asociados al dispositivo
+        ud_controller = UserDevicesController()
+        users = ud_controller.get_users(device["id"])
+        sos_data = {
+            "deviceid": device["id"],
+            "name": device["name"],
+            "uniqueid": device["uniqueid"],
+            "type": "sos",
+            "eventtime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "latitude": device["latitude"],
+            "longitude": device["longitude"],
+        }
+
+        send_notificacion(users, sos_data)
+        self.ws_manager.send_events(users, sos_data)
 
 async def send_push_notification(token, event):
     # URL de la API de Expo para enviar notificaciones
@@ -96,6 +139,19 @@ async def send_push_notification(token, event):
                 "vibrationPattern": [0, 250, 250, 250],
             },
         }
+    elif event["type"] == "deviceOverspeed":
+        data = {
+            "to": token["token"],
+            "title": "¡Alerta!",
+            "body": f"El vehiculo {event['name']} ha excedido la velocidad permitida",
+            "data": {
+                "vehicleId": event["deviceid"],
+                "screen": "Maps",
+            },
+            "android": {
+                "vibrationPattern": [0, 250, 250, 250],
+            },
+        }
     else:
         data = None
 
@@ -128,39 +184,3 @@ async def send_notificacion(users, event):
     for user in users:
         asyncio.create_task(get_tokens_and_send_notification(user["userid"], event))
 
-
-async def get_users_and_process_data(port, event, devices):
-    if event["type"] == "event":
-        data = event["data"]
-        print(
-            f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Iniciando busqueda del vehiculo"
-        )
-        found_device = next(
-            (device for device in devices if device["uniqueid"] == data["imei"]), None
-        )
-        if found_device:
-            print(
-                f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Vehiculo encontrado"
-            )
-            ud_controller = UserDevicesController()
-            print(
-                f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Iniciando busqueda de usuarios"
-            )
-            users = ud_controller.get_users(found_device["id"])
-            print(
-                f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Usuarios encontrados"
-            )
-            process_data = {
-                "deviceid": found_device["id"],
-                "name": found_device["name"],
-                "uniqueid": data["imei"],
-                "type": data["event_type"],
-                "eventtime": data["datetime"],
-                "latitude": found_device["latitude"],
-                "longitude": found_device["longitude"],
-            }
-            result = {"users": users, "process_data": process_data}
-            return result
-        return None
-    else:
-        return None

@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 
 
@@ -271,6 +272,173 @@ class Gps103Decoder:
             return {"type": "event", "data": self.data}
 
 
-def decode_gps103(message):
-    decoder = Gps103Decoder(message)
-    return decoder.parse()
+def decode_gps103(raw_data):
+    # decoder = Gps103Decoder(raw_data)
+    # return decoder.parse()
+
+    # Si el string está vacío o no contiene punto y coma, no hay expresiones válidas
+    if not raw_data or ";" not in raw_data:
+        return []
+
+    # Dividir la cadena en múltiples expresiones
+    expressions = []
+    current = ""
+
+    # Reconstruir correctamente las expresiones
+    for char in raw_data:
+        current += char
+        if char == ";":
+            expressions.append(current)
+            current = ""
+
+    # Si queda algo pendiente sin punto y coma, ignorarlo
+    results = []
+
+    # Mapeo de tipos de eventos
+    event_type_map = {
+        "acc on": "ignitionOn",
+        "acc off": "ignitionOff",
+        "help me": "sos",
+        "low battery": "lowBattery",
+        "move": "deviceMoving",
+        "speed": "deviceOverspeed",
+        "stockade": "geofenceAlarm",
+        "ac alarm": "armAlarm",
+        "acc alarm": "disarmAlarm",
+        "door alarm": "doorAlarm",
+        "sensor alarm": "alarm",
+        "accident alarm": "accidentAlarm",
+    }
+
+    for expression in expressions:
+        if not expression or not expression.endswith(";"):
+            continue
+
+        # Caso 1: Solo IMEI seguido de punto y coma (conexión simple)
+        imei_pattern = r"^(\d+);$"
+        imei_match = re.match(imei_pattern, expression)
+
+        if imei_match:
+            results.append(
+                {
+                    "type": "conexion",
+                    "imei": imei_match.group(1),
+                    "datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                }
+            )
+            continue
+
+        # Caso 2: Conexión con formato especial (##,imei:IMEI,A;)
+        special_conn_pattern = r".*?imei:(\d+),.*?;$"
+        special_conn_match = re.match(special_conn_pattern, expression)
+
+        if (
+            special_conn_match
+            and "tracker" not in expression
+            and not any(event in expression for event in event_type_map)
+        ):
+            results.append({"type": "conexion", "imei": special_conn_match.group(1), "datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+            continue
+
+        # Caso 3: Eventos
+        event_pattern = (
+            r"imei:(\d+),(.*?),(\d{12}).*?,A,(\d+\.\d+),([NS]),(\d+\.\d+),([EW]).*?;$"
+        )
+        event_match = re.match(event_pattern, expression)
+
+        if event_match and any(
+            event in event_match.group(2) for event in event_type_map
+        ):
+            imei, event_text, datetime_str, lat, lat_dir, lon, lon_dir = (
+                event_match.groups()
+            )
+
+            # Determinar el tipo de evento
+            event_type = event_text
+            for key in event_type_map:
+                if key in event_text:
+                    event_type = event_type_map[key]
+                    break
+
+            # Formatear datetime
+            if len(datetime_str) == 12:
+                formatted_datetime = f"20{datetime_str[0:2]}-{datetime_str[2:4]}-{datetime_str[4:6]} {datetime_str[6:8]}:{datetime_str[8:10]}:{datetime_str[10:12]}"
+            else:
+                # Si el formato es diferente (como 0809231929)
+                formatted_datetime = f"20{datetime_str[0:2]}-{datetime_str[2:4]}-{datetime_str[4:6]} {datetime_str[6:8]}:{datetime_str[8:10]}:{datetime_str[10:12]}"
+
+            # Procesar latitud
+            lat_degrees = float(lat[:2])
+            lat_minutes = float(lat[2:])
+            latitude = lat_degrees + (lat_minutes / 60)
+            if lat_dir == "S":
+                latitude = -latitude
+
+            # Procesar longitud
+            lon_degrees = float(lon[:3])
+            lon_minutes = float(lon[3:])
+            longitude = lon_degrees + (lon_minutes / 60)
+            if lon_dir == "W":
+                longitude = -longitude
+
+            results.append(
+                {
+                    "type": "event",
+                    "event_type": event_type,
+                    "imei": imei,
+                    "datetime": formatted_datetime,
+                    "latitude": latitude,
+                    "longitude": longitude,
+                }
+            )
+            continue
+
+        # Caso 4: Posición completa (tracker)
+        position_pattern = (
+            r"imei:(\d+),tracker,(\d{12}).*?,A,(\d+\.\d+),([NS]),(\d+\.\d+),([EW]).*?;$"
+        )
+        position_match = re.match(position_pattern, expression)
+
+        if position_match:
+            imei, datetime_str, lat, lat_dir, lon, lon_dir = position_match.groups()
+
+            # Formatear datetime
+            formatted_datetime = f"20{datetime_str[0:2]}-{datetime_str[2:4]}-{datetime_str[4:6]} {datetime_str[6:8]}:{datetime_str[8:10]}:{datetime_str[10:12]}"
+
+            # Procesar latitud
+            lat_degrees = float(lat[:2])
+            lat_minutes = float(lat[2:])
+            latitude = lat_degrees + (lat_minutes / 60)
+            if lat_dir == "S":
+                latitude = -latitude
+
+            # Procesar longitud
+            lon_degrees = float(lon[:3])
+            lon_minutes = float(lon[3:])
+            longitude = lon_degrees + (lon_minutes / 60)
+            if lon_dir == "W":
+                longitude = -longitude
+
+            # Extraer velocidad y rumbo si están presentes
+            speed = 0.0
+            course = 0.0
+
+            speed_course_pattern = r",[EW],(\d+\.\d+),(\d+\.\d+)"
+            speed_course_match = re.search(speed_course_pattern, expression)
+            if speed_course_match:
+                speed = float(speed_course_match.group(1))
+                course = float(speed_course_match.group(2))
+
+            results.append(
+                {
+                    "type": "position",
+                    "imei": imei,
+                    "datetime": formatted_datetime,
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "speed": speed,
+                    "course": course,
+                }
+            )
+
+    return results

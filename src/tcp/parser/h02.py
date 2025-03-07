@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 
 
@@ -181,6 +182,107 @@ class H02ProtocolDecoder:
         }
 
 
-def decode_h02(message):
-    decoder = H02ProtocolDecoder(message)
-    return decoder.parse()
+def decode_h02(full_string):
+    # decoder = H02ProtocolDecoder(full_string)
+    # return decoder.parse()
+
+    results = []
+
+    # Dividir la cadena en mensajes individuales
+    # Usamos una expresión regular para encontrar todos los mensajes que terminan con #
+    messages = re.findall(r"(?:\*?HQ,[^#]+#)", full_string)
+
+    for raw_message in messages:
+        # Verificar si el mensaje tiene el formato correcto
+        if not (
+            raw_message.startswith("*HQ,") or raw_message.startswith("HQ,")
+        ) or not raw_message.endswith("#"):
+            print({"error": "Formato de mensaje inválido", "raw": raw_message})
+            continue
+
+        # Normalizar el mensaje (asegurar que comience con *HQ)
+        if raw_message.startswith("HQ,"):
+            raw_message = "*" + raw_message
+
+        # Caso 1: Mensaje de conexión (*HQ,numero,V4,V1,numero#)
+        connection_pattern = r"\*HQ,(\d+),V4,V1,(\d+)#"
+        connection_match = re.match(connection_pattern, raw_message)
+
+        if connection_match:
+            imei = connection_match.group(1)
+            datetime_str = connection_match.group(2)
+
+            # Formatear la fecha y hora (asumiendo formato YYYYMMDDhhmmss)
+            formatted_datetime = None
+            if len(datetime_str) == 14:
+                try:
+                    dt = datetime.strptime(datetime_str, "%Y%m%d%H%M%S")
+                    formatted_datetime = dt.strftime("%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    formatted_datetime = datetime_str
+
+            result = {
+                "type": "conexion",
+                "imei": imei,
+                "datetime": formatted_datetime or datetime_str,
+            }
+            results.append(result)
+            continue
+
+        # Caso 2: Mensaje de posición (*HQ,imei,V1,time,A,lat,S,lon,W,speed,course,date,...)
+        position_pattern = r"\*HQ,(\d+),V1,(\d{6}),A,([\d\.]+),(N|S),([\d\.]+),(E|W),([\d\.]+),(\d+),(\d{6})"
+        position_match = re.search(position_pattern, raw_message)
+
+        if position_match:
+            imei = position_match.group(1)
+            time_str = position_match.group(2)
+            lat_raw = position_match.group(3)
+            lat_dir = position_match.group(4)
+            lon_raw = position_match.group(5)
+            lon_dir = position_match.group(6)
+            speed = position_match.group(7)
+            course = position_match.group(8)
+            date_str = position_match.group(9)
+
+            # Formatear la hora (hhmmss -> hh:mm:ss)
+            formatted_time = f"{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
+
+            # Formatear la fecha (ddmmyy -> yyyy-mm-dd)
+            day = date_str[:2]
+            month = date_str[2:4]
+            year = "20" + date_str[4:6]
+            formatted_date = f"{year}-{month}-{day}"
+
+            # Formatear fecha y hora completa
+            formatted_datetime = f"{formatted_date} {formatted_time}"
+
+            # Procesar la latitud
+            lat_degrees = float(lat_raw[:2])
+            lat_minutes = float(lat_raw[2:])
+            latitude = lat_degrees + (lat_minutes / 60.0)
+            if lat_dir == "S":
+                latitude = -latitude
+
+            # Procesar la longitud
+            lon_degrees = float(lon_raw[:3])
+            lon_minutes = float(lon_raw[3:])
+            longitude = lon_degrees + (lon_minutes / 60.0)
+            if lon_dir == "W":
+                longitude = -longitude
+
+            result = {
+                "type": "position",
+                "imei": imei,
+                "datetime": formatted_datetime,
+                "latitude": round(latitude, 6),
+                "longitude": round(longitude, 6),
+                "speed": float(speed),
+                "course": float(course),
+            }
+            results.append(result)
+            continue
+
+        # Si no coincide con ninguno de los patrones conocidos
+        print({"error": "Formato de mensaje no reconocido", "raw": raw_message})
+
+    return results
