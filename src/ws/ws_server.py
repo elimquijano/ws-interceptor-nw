@@ -146,7 +146,7 @@ class WebSocketServer:
                     device["status"] = "offline"
                 else:
                     device["status"] = "online"
-            print("Device statuses updated")
+                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Device statuses updated[{current_time}-{last_update_time}]")
 
     async def start(self):
         await self.save_devices_init()
