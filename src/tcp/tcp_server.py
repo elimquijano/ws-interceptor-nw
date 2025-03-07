@@ -14,13 +14,13 @@ class TCPServer:
     async def process_data(self, port, data):
         if data["type"] == "conexion":
             p = Position()
-            p.update_lastupdate(port, data)
+            asyncio.create_task(p.update_lastupdate(port, data))
         elif data["type"] == "position":
             p = Position()
-            p.update_position(port, data)
+            asyncio.create_task(p.update_position(port, data))
         elif data["type"] == "event" and data["event_type"] != "unknown":
             e = Events()
-            e.send_events_to_users(port, data)
+            asyncio.create_task(e.send_events_to_users(port, data))
 
     async def tcp_to_json(self, port, data):
         print(f"{port} - {data}")
@@ -36,7 +36,7 @@ class TCPServer:
         if len(data_array) > 0:
             for data_dict in data_array:
                 # Iniciar el procesamiento de datos en segundo plano
-                asyncio.create_task(self.process_data(port, data_dict))
+                await self.process_data(port, data_dict)
 
         # Retornar inmediatamente para indicar que la ejecución ha terminado
         return
