@@ -33,7 +33,7 @@ class Position:
                     break
             await self.ws_manager.save_devices(devices)
 
-    def check_geofence(self, device, event):
+    async def check_geofence(self, device, event):
         dg_controller = DeviceGeofenceController()
         geofences = dg_controller.get_geofences(device["id"])
         for geofence in geofences:
