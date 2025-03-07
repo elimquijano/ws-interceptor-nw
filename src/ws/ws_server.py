@@ -136,6 +136,9 @@ class WebSocketServer:
             await asyncio.sleep(60)  # Esperar 1 minuto
             current_time = datetime.now()
             for device in self.ws_manager.devices:
+                if device["lastupdate"] is None:
+                    device["status"] = "offline"
+                    continue
                 last_update_time = datetime.strptime(
                     device["lastupdate"], "%Y-%m-%d %H:%M:%S"
                 )
