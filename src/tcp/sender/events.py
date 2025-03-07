@@ -31,7 +31,7 @@ class Events:
                 }
                 asyncio.create_task(send_notificacion(users, process_data))
                 asyncio.create_task(self.ws_manager.send_events(users, process_data))
-                print(f"Event {event["event_type"]} created")
+                print(f"Event created")
 
     async def create_sos_event(self, device):
         # Buscar usuarios asociados al dispositivo
