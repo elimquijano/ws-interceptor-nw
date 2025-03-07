@@ -19,6 +19,7 @@ class Position:
             devices = self.ws_manager.devices
             for device in devices:
                 if device["uniqueid"] == event["imei"]:
+                    asyncio.create_task(self.check_geofence(device, event))
                     device["latitude"] = event.get("latitude", 0.0)
                     device["longitude"] = event.get("longitude", 0.0)
                     device["speed"] = event.get("speed", 0.0)
@@ -63,6 +64,7 @@ class Position:
                 users = ud_controller.get_users(device["id"])
                 asyncio.create_task(send_notificacion(users, geofence_data))
                 asyncio.create_task(self.ws_manager.send_events(users, geofence_data))
+                print("Geofence event detected")
 
     async def update_lastupdate(self, port, event):
         devices = self.ws_manager.devices
