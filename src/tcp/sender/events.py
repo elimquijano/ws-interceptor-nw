@@ -152,6 +152,32 @@ async def send_push_notification(token, event):
                 "vibrationPattern": [0, 250, 250, 250],
             },
         }
+    elif event["type"] == "geofenceEnter":
+        data = {
+            "to": token["token"],
+            "title": "¡Alerta!",
+            "body": f"El vehiculo {event['name']} ha ingresado a la geocerca {event['geofencename']}",
+            "data": {
+                "vehicleId": event["deviceid"],
+                "screen": "Maps",
+            },
+            "android": {
+                "vibrationPattern": [0, 250, 250, 250],
+            },
+        }
+    elif event["type"] == "geofenceExit":
+        data = {
+            "to": token["token"],
+            "title": "¡Alerta!",
+            "body": f"El vehiculo {event['name']} ha salido de la geocerca {event['geofencename']}",
+            "data": {
+                "vehicleId": event["deviceid"],
+                "screen": "Maps",
+            },
+            "android": {
+                "vibrationPattern": [0, 250, 250, 250],
+            },
+        }
     else:
         data = None
 

@@ -92,8 +92,8 @@ def check_geofence_event(geofence_str, prev_position, current_position):
 
     # Determinar si entró o salió
     if not prev_inside and current_inside:
-        return "GeofenceEnter"
+        return "geofenceEnter"
     elif prev_inside and not current_inside:
-        return "GeofenceExit"
+        return "geofenceExit"
     else:
         return None  # No hubo cambio
