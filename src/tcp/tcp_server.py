@@ -35,6 +35,7 @@ class TCPServer:
 
         if len(data_array) > 0:
             for data_dict in data_array:
+                print(data_dict)
                 # Iniciar el procesamiento de datos en segundo plano
                 await self.process_data(port, data_dict)
 

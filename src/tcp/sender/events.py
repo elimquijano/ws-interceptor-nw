@@ -29,8 +29,9 @@ class Events:
                     "latitude": found_device["latitude"],
                     "longitude": found_device["longitude"],
                 }
-                send_notificacion(users, process_data)
-                self.ws_manager.send_events(users, process_data)
+                asyncio.create_task(send_notificacion(users, process_data))
+                asyncio.create_task(self.ws_manager.send_events(users, process_data))
+                print(f"Event {event["event_type"]} created")
 
     async def create_sos_event(self, device):
         # Buscar usuarios asociados al dispositivo
@@ -46,8 +47,9 @@ class Events:
             "longitude": device["longitude"],
         }
 
-        send_notificacion(users, sos_data)
-        self.ws_manager.send_events(users, sos_data)
+        asyncio.create_task(send_notificacion(users, sos_data))
+        asyncio.create_task(self.ws_manager.send_events(users, sos_data))
+        print("SOS event created")
 
 async def send_push_notification(token, event):
     # URL de la API de Expo para enviar notificaciones
