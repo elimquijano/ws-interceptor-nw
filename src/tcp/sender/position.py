@@ -16,10 +16,17 @@ class Position:
         if event["type"] == "position" and check_datetime_valid(
             port, event["datetime"]
         ):
+            print(f"POSICION VALIDA")
             devices = self.ws_manager.devices
             for device in devices:
                 if device["uniqueid"] == event["imei"]:
-                    self.check_geofence(device, event)
+                    print(f"DEVICE ENCONTRADO: {device['name']}")
+                    print(f"LATITUD IGUAL: {device['latitude'] == event['latitude']}")
+                    print(
+                        f"LONGITUD IGUAL: {device['longitude'] == event['longitude']}"
+                    )
+                    print(f"ENVIANDO A CHECK GEOFENCE")
+                    asyncio.create_task(self.check_geofence(device, event))
                     device["latitude"] = event.get("latitude", 0.0)
                     device["longitude"] = event.get("longitude", 0.0)
                     device["speed"] = event.get("speed", 0.0)
@@ -36,6 +43,7 @@ class Position:
     async def check_geofence(self, device, event):
         dg_controller = DeviceGeofenceController()
         geofences = dg_controller.get_geofences(device["id"])
+        print(f"GEOFENCES: {len(geofences)}")
         for geofence in geofences:
             prev_position = {
                 "latitude": device["latitude"],
@@ -45,9 +53,7 @@ class Position:
                 "latitude": event["latitude"],
                 "longitude": event["longitude"],
             }
-            print(
-                f"\nIGUAL: {prev_position == current_position}"
-            )
+            print(f"\nIGUAL: {prev_position == current_position}")
             geofence_event = check_geofence_event(
                 geofence["area"], prev_position, current_position
             )
