@@ -36,7 +36,6 @@ class Position:
     async def check_geofence(self, device, event):
         dg_controller = DeviceGeofenceController()
         geofences = dg_controller.get_geofences(device["id"])
-        print(f"Geofences: {geofences}")
         for geofence in geofences:
             prev_position = {
                 "latitude": device["latitude"],
@@ -46,6 +45,7 @@ class Position:
                 "latitude": event["latitude"],
                 "longitude": event["longitude"],
             }
+            print("\n", geofence["area"], prev_position, current_position)
             geofence_event = check_geofence_event(
                 geofence["area"], prev_position, current_position
             )
