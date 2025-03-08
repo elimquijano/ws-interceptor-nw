@@ -16,27 +16,21 @@ class Position:
         if event["type"] == "position" and check_datetime_valid(
             port, event["datetime"]
         ):
-            print(f"POSICION VALIDA")
             devices = self.ws_manager.devices
             for device in devices:
                 if device["uniqueid"] == event["imei"]:
-                    print(f"DEVICE ENCONTRADO: {device['name']}")
-                    print(f"LATITUD IGUAL: {device['latitude'] == event['latitude']}")
-                    print(f"LONGITUD IGUAL: {device['longitude'] == event['longitude']}")
-                    print(f"ENVIANDO A CHECK GEOFENCE")
-                    
                     # Create a copy of the original device state before modifying it
                     device_copy = {
                         "id": device["id"],
                         "name": device["name"],
                         "uniqueid": device["uniqueid"],
                         "latitude": device["latitude"],
-                        "longitude": device["longitude"]
+                        "longitude": device["longitude"],
                     }
-                    
+
                     # Create the task with the copy
                     asyncio.create_task(self.check_geofence(device_copy, event))
-                    
+
                     # Now update the original device
                     device["latitude"] = event.get("latitude", 0.0)
                     device["longitude"] = event.get("longitude", 0.0)
@@ -48,14 +42,14 @@ class Position:
                     )
                     device["course"] = event.get("course", 0.0)
                     device["status"] = "online"
-                    print(f"DEVICE ACTUALIZADO: {device['name']}")
+
                     break
             await self.ws_manager.save_devices(devices)
 
     async def check_geofence(self, device, event):
         dg_controller = DeviceGeofenceController()
         geofences = dg_controller.get_geofences(device["id"])
-        print(f"GEOFENCES: {len(geofences)}")
+
         for geofence in geofences:
             prev_position = {
                 "latitude": device["latitude"],
@@ -65,12 +59,11 @@ class Position:
                 "latitude": event["latitude"],
                 "longitude": event["longitude"],
             }
-            print(f"C-LATITUD IGUAL: {device['latitude'] == event['latitude']}")
-            print(f"c-LONGITUD IGUAL: {device['longitude'] == event['longitude']}")
+
             geofence_event = check_geofence_event(
                 geofence["area"], prev_position, current_position
             )
-            print(f"Geofence event: {geofence_event}")
+
             if geofence_event is not None:
                 geofence_data = {
                     "deviceid": device["id"],
@@ -87,6 +80,7 @@ class Position:
                 users = ud_controller.get_users(device["id"])
                 asyncio.create_task(send_notificacion(users, geofence_data))
                 asyncio.create_task(self.ws_manager.send_events(users, geofence_data))
+                print("Geofence event")
 
     async def update_lastupdate(self, port, event):
         devices = self.ws_manager.devices
