@@ -37,6 +37,7 @@ class Position:
                     )
                     device["course"] = event.get("course", 0.0)
                     device["status"] = "online"
+                    print(f"DEVICE ACTUALIZADO: {device['name']}")
                     break
             await self.ws_manager.save_devices(devices)
 
@@ -53,7 +54,8 @@ class Position:
                 "latitude": event["latitude"],
                 "longitude": event["longitude"],
             }
-            print(f"\nIGUAL: {prev_position == current_position}")
+            print(f"C-LATITUD IGUAL: {device['latitude'] == event['latitude']}")
+            print(f"c-LONGITUD IGUAL: {device['longitude'] == event['longitude']}")
             geofence_event = check_geofence_event(
                 geofence["area"], prev_position, current_position
             )
