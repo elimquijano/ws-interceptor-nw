@@ -22,11 +22,22 @@ class Position:
                 if device["uniqueid"] == event["imei"]:
                     print(f"DEVICE ENCONTRADO: {device['name']}")
                     print(f"LATITUD IGUAL: {device['latitude'] == event['latitude']}")
-                    print(
-                        f"LONGITUD IGUAL: {device['longitude'] == event['longitude']}"
-                    )
+                    print(f"LONGITUD IGUAL: {device['longitude'] == event['longitude']}")
                     print(f"ENVIANDO A CHECK GEOFENCE")
-                    asyncio.create_task(self.check_geofence(device, event))
+                    
+                    # Create a copy of the original device state before modifying it
+                    device_copy = {
+                        "id": device["id"],
+                        "name": device["name"],
+                        "uniqueid": device["uniqueid"],
+                        "latitude": device["latitude"],
+                        "longitude": device["longitude"]
+                    }
+                    
+                    # Create the task with the copy
+                    asyncio.create_task(self.check_geofence(device_copy, event))
+                    
+                    # Now update the original device
                     device["latitude"] = event.get("latitude", 0.0)
                     device["longitude"] = event.get("longitude", 0.0)
                     device["speed"] = event.get("speed", 0.0)
