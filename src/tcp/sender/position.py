@@ -45,7 +45,9 @@ class Position:
                 "latitude": event["latitude"],
                 "longitude": event["longitude"],
             }
-            print("\n", geofence["area"], prev_position, current_position)
+            print(
+                f"prev: {prev_position} current:{current_position} IGUAL: {prev_position == current_position}"
+            )
             geofence_event = check_geofence_event(
                 geofence["area"], prev_position, current_position
             )
