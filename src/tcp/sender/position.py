@@ -19,7 +19,7 @@ class Position:
             devices = self.ws_manager.devices
             for device in devices:
                 if device["uniqueid"] == event["imei"]:
-                    asyncio.create_task(self.check_geofence(device, event))
+                    self.check_geofence(device, event)
                     device["latitude"] = event.get("latitude", 0.0)
                     device["longitude"] = event.get("longitude", 0.0)
                     device["speed"] = event.get("speed", 0.0)
@@ -46,7 +46,7 @@ class Position:
                 "longitude": event["longitude"],
             }
             print(
-                f"prev: {prev_position} current:{current_position} IGUAL: {prev_position == current_position}"
+                f"\nIGUAL: {prev_position == current_position}"
             )
             geofence_event = check_geofence_event(
                 geofence["area"], prev_position, current_position
