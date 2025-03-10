@@ -142,7 +142,7 @@ class WebSocketServer:
                 last_update_time = datetime.strptime(
                     device["lastupdate"], "%Y-%m-%d %H:%M:%S"
                 )
-                if current_time - last_update_time > timedelta(minutes=2):
+                if current_time - last_update_time > timedelta(minutes=3):
                     device["status"] = "offline"
                 else:
                     device["status"] = "online"

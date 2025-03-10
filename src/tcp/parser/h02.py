@@ -276,7 +276,7 @@ def decode_h02(full_string):
                 "datetime": formatted_datetime,
                 "latitude": round(latitude, 6),
                 "longitude": round(longitude, 6),
-                "speed": float(speed),
+                "speed": float(speed) * 1.852, # Convertir de nudos a km/h
                 "course": float(course),
             }
             results.append(result)

@@ -1,3 +1,5 @@
-websockets>=10.0
-asyncio>=3.4.3
+aiohttp
+python-dotenv
+requests
+mysql-connector-python
 shapely

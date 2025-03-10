@@ -426,7 +426,7 @@ def decode_gps103(raw_data):
             speed_course_pattern = r",[EW],(\d+\.\d+),(\d+\.\d+)"
             speed_course_match = re.search(speed_course_pattern, expression)
             if speed_course_match:
-                speed = float(speed_course_match.group(1))
+                speed = float(speed_course_match.group(1)) * 1.852 # Convertir de nudos a km/h
                 course = float(speed_course_match.group(2))
 
             results.append(
