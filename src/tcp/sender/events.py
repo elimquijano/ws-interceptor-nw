@@ -105,79 +105,121 @@ async def send_push_notification(token, event):
     elif event["type"] == "ignitionOn":
         data = {
             "to": token["token"],
+            "sound": "generico.wav",
             "title": "¡Alerta!",
             "body": f"Encendido del vehiculo {event['name']}",
             "data": {
                 "vehicleId": event["deviceid"],
                 "screen": "Maps",
             },
+            "channelId": "default-channel",
             "android": {
+                "channelId": "default-channel",
                 "vibrationPattern": [0, 250, 250, 250],
+                "lightColor": "#FF231F7C",
+            },
+            "ios": {
+                "sound": "generico.wav",
             },
         }
     elif event["type"] == "ignitionOff":
         data = {
             "to": token["token"],
+            "sound": "generico.wav",
             "title": "¡Alerta!",
             "body": f"Apagado del vehiculo {event['name']}",
             "data": {
                 "vehicleId": event["deviceid"],
                 "screen": "Maps",
             },
+            "channelId": "default-channel",
             "android": {
+                "channelId": "default-channel",
                 "vibrationPattern": [0, 250, 250, 250],
+                "lightColor": "#FF231F7C",
+            },
+            "ios": {
+                "sound": "generico.wav",
             },
         }
     elif event["type"] == "powerCut":
         data = {
             "to": token["token"],
+            "sound": "generico.wav",
             "title": "¡Alerta!",
             "body": f"Corte de energía en su vehiculo {event['name']}",
             "data": {
                 "vehicleId": event["deviceid"],
                 "screen": "Maps",
             },
+            "channelId": "default-channel",
             "android": {
+                "channelId": "default-channel",
                 "vibrationPattern": [0, 250, 250, 250],
+                "lightColor": "#FF231F7C",
+            },
+            "ios": {
+                "sound": "generico.wav",
             },
         }
     elif event["type"] == "deviceOverspeed":
         data = {
             "to": token["token"],
+            "sound": "generico.wav",
             "title": "¡Alerta!",
             "body": f"El vehiculo {event['name']} ha excedido la velocidad permitida",
             "data": {
                 "vehicleId": event["deviceid"],
                 "screen": "Maps",
             },
+            "channelId": "default-channel",
             "android": {
+                "channelId": "default-channel",
                 "vibrationPattern": [0, 250, 250, 250],
+                "lightColor": "#FF231F7C",
+            },
+            "ios": {
+                "sound": "generico.wav",
             },
         }
     elif event["type"] == "geofenceEnter":
         data = {
             "to": token["token"],
+            "sound": "generico.wav",
             "title": "¡Alerta!",
             "body": f"El vehiculo {event['name']} ha ingresado a la geocerca {event['geofencename']}",
             "data": {
                 "vehicleId": event["deviceid"],
                 "screen": "Maps",
             },
+            "channelId": "default-channel",
             "android": {
+                "channelId": "default-channel",
                 "vibrationPattern": [0, 250, 250, 250],
+                "lightColor": "#FF231F7C",
+            },
+            "ios": {
+                "sound": "generico.wav",
             },
         }
     elif event["type"] == "geofenceExit":
         data = {
             "to": token["token"],
+            "sound": "generico.wav",
             "title": "¡Alerta!",
             "body": f"El vehiculo {event['name']} ha salido de la geocerca {event['geofencename']}",
             "data": {
                 "vehicleId": event["deviceid"],
                 "screen": "Maps",
             },
+            "channelId": "default-channel",
             "android": {
+                "channelId": "default-channel",
                 "vibrationPattern": [0, 250, 250, 250],
+                "lightColor": "#FF231F7C",
+            },
+            "ios": {
+                "sound": "generico.wav",
             },
         }
     else:
