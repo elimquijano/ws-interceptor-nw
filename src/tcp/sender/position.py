@@ -35,11 +35,7 @@ class Position:
                     device["latitude"] = event.get("latitude", 0.0)
                     device["longitude"] = event.get("longitude", 0.0)
                     device["speed"] = event.get("speed", 0.0)
-                    device["lastupdate"] = (
-                        event["datetime"]
-                        if port == 6001
-                        else five_hours_ago(event["datetime"])
-                    )
+                    device["lastupdate"] = event["datetime"]
                     device["course"] = event.get("course", 0.0)
                     device["status"] = "online"
 
@@ -96,11 +92,7 @@ class Position:
 
         for device in devices:
             if device["uniqueid"] == event["imei"]:
-                device["lastupdate"] = (
-                    event["datetime"]
-                    if port == 6001
-                    else five_hours_ago(event["datetime"])
-                )
+                device["lastupdate"] = event["datetime"]
                 device["status"] = "online"
                 break
         await self.ws_manager.save_devices(devices)
