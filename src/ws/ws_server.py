@@ -143,16 +143,11 @@ class WebSocketServer:
                 last_update_time = datetime.strptime(
                     device["lastupdate"], "%Y-%m-%d %H:%M:%S"
                 )
-                if current_time - last_update_time > timedelta(minutes=3):
+                if current_time - last_update_time > timedelta(minutes=1):
                     device["status"] = "offline"
                     device["speed"] = 0.0
                 else:
                     device["status"] = "online"
-                (
-                    print(f"{device['name']} - {current_time-last_update_time}")
-                    if (device["name"] == "AKP-681" or device["name"] == "EAC-674" or device["name"] == "EAC-669")
-                    else None
-                )
             print(
                 f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Devices statuses updated"
             )

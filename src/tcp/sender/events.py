@@ -51,6 +51,7 @@ class Events:
         asyncio.create_task(self.ws_manager.send_events(users, sos_data))
         print("SOS event created")
 
+
 async def send_push_notification(token, event):
     # URL de la API de Expo para enviar notificaciones
     url = "https://exp.host/--/api/v2/push/send"
@@ -239,7 +240,7 @@ async def send_push_notification(token, event):
 async def get_tokens_and_send_notification(userid, event):
     try:
         # buscar tokens por cada usuario
-        url = f"{API_URL_ADMIN_NWPERU}pushtokenuser?traccar_id={userid}"
+        url = f"{API_URL_ADMIN_NWPERU}pushtokenuser?traccar_id={userid}&type={event['type']}"
         response = requests.get(url)
         if response.status_code == 200:
             tokens = response.json()
