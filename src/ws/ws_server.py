@@ -150,7 +150,7 @@ class WebSocketServer:
                     device["status"] = "online"
                 (
                     print(f"{device['name']} - {current_time-last_update_time}")
-                    if device["name"] == "AKP-681"
+                    if (device["name"] == "AKP-681" or device["name"] == "EAC-674" or device["name"] == "EAC-669")
                     else None
                 )
             print(
