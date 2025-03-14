@@ -102,6 +102,11 @@ def es_fecha_mas_reciente(fecha_anterior_str, fecha_actual_str):
     # Convertir las cadenas a objetos datetime
     fecha_anterior = datetime.strptime(fecha_anterior_str, "%Y-%m-%d %H:%M:%S")
     fecha_actual = datetime.strptime(fecha_actual_str, "%Y-%m-%d %H:%M:%S")
+    fecha_ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    print(fecha_anterior)
+    print(fecha_actual)
+    print(fecha_ahora)
 
     # Comparar las fechas
     return fecha_actual > fecha_anterior
