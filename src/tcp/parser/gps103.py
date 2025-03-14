@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class Gps103Decoder:
@@ -272,6 +272,17 @@ class Gps103Decoder:
             return {"type": "event", "data": self.data}
 
 
+def sumar_horas(fecha_str, horas):
+    # Convertir la cadena a un objeto datetime
+    fecha = datetime.strptime(fecha_str, '%Y-%m-%d %H:%M:%S')
+    
+    # Sumar las horas
+    nueva_fecha = fecha + timedelta(hours=horas)
+    
+    # Retornar la nueva fecha en formato de cadena
+    return nueva_fecha.strftime('%Y-%m-%d %H:%M:%S')
+
+
 def decode_gps103(raw_data):
     # decoder = Gps103Decoder(raw_data)
     # return decoder.parse()
@@ -386,7 +397,7 @@ def decode_gps103(raw_data):
                     "type": "event",
                     "event_type": event_type,
                     "imei": imei,
-                    "datetime": formatted_datetime,
+                    "datetime": sumar_horas(formatted_datetime, 5),
                     "latitude": latitude,
                     "longitude": longitude,
                 }
@@ -433,7 +444,7 @@ def decode_gps103(raw_data):
                 {
                     "type": "position",
                     "imei": imei,
-                    "datetime": formatted_datetime,
+                    "datetime": sumar_horas(formatted_datetime, 5),
                     "latitude": latitude,
                     "longitude": longitude,
                     "speed": speed,
