@@ -13,34 +13,34 @@ class Position:
         self.ws_manager = WebSocketManager()
 
     async def update_position(self, port, event):
-        if event["type"] == "position" and check_datetime_valid(
-            port, event["datetime"]
-        ):
-            devices = self.ws_manager.devices
-            for device in devices:
-                if device["uniqueid"] == event["imei"]:
-                    # Create a copy of the original device state before modifying it
-                    device_copy = {
-                        "id": device["id"],
-                        "name": device["name"],
-                        "uniqueid": device["uniqueid"],
-                        "latitude": device["latitude"],
-                        "longitude": device["longitude"],
-                    }
+        devices = self.ws_manager.devices
+        for device in devices:
+            if device["uniqueid"] == event["imei"] and es_fecha_mas_reciente(
+                device["lastupdate"], event["datetime"]
+            ):
+                print(f"Posicion aceptada para {device['name']}")
+                # Create a copy of the original device state before modifying it
+                device_copy = {
+                    "id": device["id"],
+                    "name": device["name"],
+                    "uniqueid": device["uniqueid"],
+                    "latitude": device["latitude"],
+                    "longitude": device["longitude"],
+                }
 
-                    # Create the task with the copy
-                    asyncio.create_task(self.check_geofence(device_copy, event))
+                # Create the task with the copy
+                asyncio.create_task(self.check_geofence(device_copy, event))
 
-                    # Now update the original device
-                    device["latitude"] = event.get("latitude", 0.0)
-                    device["longitude"] = event.get("longitude", 0.0)
-                    device["speed"] = event.get("speed", 0.0)
-                    device["lastupdate"] = event["datetime"]
-                    device["course"] = event.get("course", 0.0)
-                    device["status"] = "online"
+                # Now update the original device
+                device["latitude"] = event.get("latitude", 0.0)
+                device["longitude"] = event.get("longitude", 0.0)
+                device["speed"] = event.get("speed", 0.0)
+                device["lastupdate"] = event["datetime"]
+                device["course"] = event.get("course", 0.0)
+                device["status"] = "online"
 
-                    break
-            await self.ws_manager.save_devices(devices)
+                break
+        await self.ws_manager.save_devices(devices)
 
     async def check_geofence(self, device, event):
         dg_controller = DeviceGeofenceController()
@@ -98,28 +98,13 @@ class Position:
         await self.ws_manager.save_devices(devices)
 
 
-def check_datetime_valid(port, datetime_str):
-    # Convertir la cadena de fecha y hora del vehículo a un objeto datetime
-    vehicle_datetime = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S")
-    # Obtener la hora actual
-    current_datetime = datetime.now()
-    if port == 6013:  # Sinotrack
-        # Calcular el rango aceptable (una hora menos y un máximo de 20 segundos de diferencia)
-        min_acceptable_datetime = current_datetime - timedelta(hours=1, seconds=20)
-        max_acceptable_datetime = current_datetime + timedelta(seconds=20)
-    elif port == 6001:  # Coban
-        # Calcular el rango aceptable (seis horas menos y un máximo de 20 segundos de diferencia)
-        min_acceptable_datetime = current_datetime - timedelta(hours=6, seconds=20)
-        max_acceptable_datetime = current_datetime + timedelta(seconds=20)
-    elif port == 6027:  # Teltonika
-        return True
-    else:
-        return False
-    # Verificar si la fecha y hora del vehículo está dentro del rango aceptable
-    if min_acceptable_datetime <= vehicle_datetime <= max_acceptable_datetime:
-        return True
-    else:
-        return False
+def es_fecha_mas_reciente(fecha_anterior_str, fecha_actual_str):
+    # Convertir las cadenas a objetos datetime
+    fecha_anterior = datetime.strptime(fecha_anterior_str, "%Y-%m-%d %H:%M:%S")
+    fecha_actual = datetime.strptime(fecha_actual_str, "%Y-%m-%d %H:%M:%S")
+
+    # Comparar las fechas
+    return fecha_actual > fecha_anterior
 
 
 def five_hours_ago(datetime_str):
