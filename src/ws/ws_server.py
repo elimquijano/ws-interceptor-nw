@@ -209,6 +209,7 @@ class WebSocketServer:
         user_devices = await asyncio.to_thread(ud_controller.get_devices, user_id)
         device_ids = {item["deviceid"] for item in user_devices}
 
+        print(f"{user_id} - Buscar device {device_id} en {device_ids}")
         if str(device_id) not in device_ids:
             return web.HTTPForbidden(reason="Device not found for the user", status=403)
 
