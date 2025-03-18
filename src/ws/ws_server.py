@@ -204,6 +204,14 @@ class WebSocketServer:
         if not auth:
             return web.HTTPForbidden(reason="Authentication failed")
 
+        user_id = auth["id"]
+        ud_controller = UserDevicesController()
+        user_devices = await asyncio.to_thread(ud_controller.get_devices, user_id)
+        device_ids = {item["deviceid"] for item in user_devices}
+
+        if str(device_id) not in device_ids:
+            return web.HTTPForbidden(reason="Device not found for the user", status=403)
+
         token = str(uuid.uuid4())
         self.guest_tokens[token] = {"deviceid": device_id, "expires_at": expires_at}
 
@@ -219,6 +227,7 @@ class WebSocketServer:
             # Desconectar a todos los clientes invitados con este token
             for websocket, guest_info in list(self.ws_manager.guest_clients.items()):
                 if guest_info["token"] == token:
+                    await websocket.close(code=1000, message="Token expired")
                     await self.ws_manager.unregister_guest(websocket)
 
     async def update_device_status(self):
