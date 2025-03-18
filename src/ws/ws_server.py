@@ -34,7 +34,9 @@ class WebSocketServer:
         ud_controller = UserDevicesController()
         user_devices = await asyncio.to_thread(ud_controller.get_devices, user_id)
         device_ids = {item["deviceid"] for item in user_devices}
-        devices = [obj for obj in self.ws_manager.devices if obj["id"] in device_ids]
+        devices = [
+            obj for obj in self.ws_manager.devices if str(obj["id"]) in device_ids
+        ]
         print(f"New WebSocket client connected - Username: {username}")
 
         ws = web.WebSocketResponse()
@@ -80,7 +82,9 @@ class WebSocketServer:
             return web.HTTPForbidden(reason="Token has expired")
 
         device_id = guest_info["deviceid"]
-        devices = [obj for obj in self.ws_manager.devices if obj["id"] == device_id]
+        devices = [
+            obj for obj in self.ws_manager.devices if str(obj["id"]) == str(device_id)
+        ]
         print(f"New Guest WebSocket client connected - Token: {token}")
 
         ws = web.WebSocketResponse()
@@ -137,14 +141,18 @@ class WebSocketServer:
             user_devices = await user_devices_task
             device_ids = {item["deviceid"] for item in user_devices}
             devices = [
-                obj for obj in self.ws_manager.devices if obj["id"] in device_ids
+                obj for obj in self.ws_manager.devices if str(obj["id"]) in device_ids
             ]
             await self.ws_manager.send_to_all_clients(user_id, {"devices": devices})
 
     async def send_device_periodically_to_guest(self, token, device_id):
         while True:
             await asyncio.sleep(5)
-            devices = [obj for obj in self.ws_manager.devices if obj["id"] == device_id]
+            devices = [
+                obj
+                for obj in self.ws_manager.devices
+                if str(obj["id"]) == str(device_id)
+            ]
             await self.ws_manager.send_to_all_guest_clients(token, {"devices": devices})
 
     async def save_devices_init(self):
@@ -162,7 +170,11 @@ class WebSocketServer:
             )
 
         found_device = next(
-            (device for device in self.ws_manager.devices if device["id"] == device_id),
+            (
+                device
+                for device in self.ws_manager.devices
+                if str(device["id"]) == str(device_id)
+            ),
             None,
         )
         if not found_device:
@@ -204,6 +216,10 @@ class WebSocketServer:
         if token in self.guest_tokens:
             del self.guest_tokens[token]
             print(f"Guest token {token} has expired and been removed.")
+            # Desconectar a todos los clientes invitados con este token
+            for websocket, guest_info in list(self.ws_manager.guest_clients.items()):
+                if guest_info["token"] == token:
+                    await self.ws_manager.unregister_guest(websocket)
 
     async def update_device_status(self):
         while True:
