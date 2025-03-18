@@ -210,8 +210,8 @@ class WebSocketServer:
         device_ids = {item["deviceid"] for item in user_devices}
 
         print(f"{user_id} - Buscar device {device_id} en {device_ids}")
-        if str(device_id) not in device_ids:
-            return web.HTTPForbidden(reason="Device not found for the user", status=403)
+        if device_id not in device_ids:
+            return web.HTTPForbidden(reason="Device not found for the user")
 
         token = str(uuid.uuid4())
         self.guest_tokens[token] = {"deviceid": device_id, "expires_at": expires_at}
