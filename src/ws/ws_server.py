@@ -105,8 +105,8 @@ class WebSocketServer:
         finally:
             await self.ws_manager.unregister_guest(ws)
             if not any(
-                client_info["token"] == token
-                for client_info in self.ws_manager.guest_clients.values()
+                guest_info["token"] == token
+                for guest_info in self.ws_manager.guest_clients.values()
             ):
                 self.periodic_tasks[token].cancel()
                 del self.periodic_tasks[token]
