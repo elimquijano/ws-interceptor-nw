@@ -146,9 +146,7 @@ class WebSocketServer:
             await asyncio.sleep(5)
             user_devices = await user_devices_task
             device_ids = {item["deviceid"] for item in user_devices}
-            devices = [
-                obj for obj in self.ws_manager.devices if str(obj["id"]) in device_ids
-            ]
+            devices = [obj for obj in self.ws_manager.devices if obj["id"] in device_ids]
             await self.ws_manager.send_to_all_clients(user_id, {"devices": devices})
 
     async def send_device_periodically_to_guest(self, token, device_id):
