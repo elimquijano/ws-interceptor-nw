@@ -18,9 +18,11 @@ class WebSocketServer:
         self.guest_tokens = {}
 
     async def websocket_handler(self, request):
-        username = request.query.get("u")
-        password = request.query.get("p")
+        # Extraer parámetros de la URL
+        username = request.query.get("u")  # Sin valor por defecto
+        password = request.query.get("p")  # Sin valor por defecto
 
+        # Verificar si se proporcionaron username y password
         if not username or not password:
             print("Connection attempt without credentials")
             return web.HTTPForbidden(reason="Authentication required")
@@ -30,21 +32,24 @@ class WebSocketServer:
             print("Authentication failed")
             return web.HTTPForbidden(reason="Authentication failed")
 
+        # Obtener dispositivos del usuario conectado
         user_id = auth["id"]
         ud_controller = UserDevicesController()
         user_devices = await asyncio.to_thread(ud_controller.get_devices, user_id)
+        # Crear un conjunto de deviceid para búsqueda rápida
         device_ids = {item["deviceid"] for item in user_devices}
-        devices = [
-            obj for obj in self.ws_manager.devices if str(obj["id"]) in device_ids
-        ]
+        # Filtrar vehículos solo del usuario conectado
+        devices = [obj for obj in self.ws_manager.devices if obj["id"] in device_ids]
         print(f"New WebSocket client connected - Username: {username}")
 
         ws = web.WebSocketResponse()
-        await ws.prepare(request)
+        await ws.prepare(request)  # Preparar el WebSocket antes de registrarlo
         await self.ws_manager.register(ws, username, password, user_id)
 
+        # Enviar dispositivos al cliente
         await self.ws_manager.send_to_client(ws, {"devices": devices})
 
+        # Iniciar la tarea en segundo plano para enviar dispositivos cada 5 segundos
         if user_id not in self.periodic_tasks:
             self.periodic_tasks[user_id] = asyncio.create_task(
                 self.send_devices_periodically(user_id)
@@ -60,6 +65,7 @@ class WebSocketServer:
             print(f"Exception in WebSocket handler: {e}")
         finally:
             await self.ws_manager.unregister(ws)
+            # Si no hay más conexiones para este usuario, cancelar la tarea periódica
             if not any(
                 client_info["userid"] == user_id
                 for client_info in self.ws_manager.clients.values()
@@ -219,7 +225,6 @@ class WebSocketServer:
 
         return web.json_response({"token": token})
 
-    
     async def remove_expired_guest(self, token, expires_at):
         await asyncio.sleep((expires_at - datetime.now()).total_seconds())
         if token in self.guest_tokens:
