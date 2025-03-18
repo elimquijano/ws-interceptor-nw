@@ -176,19 +176,23 @@ class WebSocketServer:
     async def handle_share_request(self, request):
         data = await request.json()
         device_id = data.get("deviceid")
-        tiempo_vigente = data.get("tiempo_vigente")
+        expires_at = data.get("expires_at")
         username = data.get("usuario")
         password = data.get("contraseña")
 
-        if not device_id or not tiempo_vigente or not username or not password:
+        if not device_id or not expires_at or not username or not password:
             return web.HTTPBadRequest(reason="Faltan campos requeridos", status=400)
+
+        try:
+            expires_at = datetime.strptime(expires_at, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return web.HTTPBadRequest(reason="Formato de fecha incorrecto", status=400)
 
         auth = login(username, password)
         if not auth:
             return web.HTTPForbidden(reason="Authentication failed")
 
         token = str(uuid.uuid4())
-        expires_at = datetime.now() + timedelta(seconds=tiempo_vigente)
         self.guest_tokens[token] = {"deviceid": device_id, "expires_at": expires_at}
 
         asyncio.create_task(self.remove_expired_guest(token, expires_at))
