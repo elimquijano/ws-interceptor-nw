@@ -22,6 +22,7 @@ class Position:
                 laststop = device.get(
                     "laststop", datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 )
+                print(f"laststop: {laststop}")
                 # Create a copy of the original device state before modifying it
                 device_copy = {
                     "id": device["id"],
@@ -49,13 +50,11 @@ class Position:
                             "latitude": event.get("latitude", 0.0),
                         },
                     )
-                    else event.get(
-                        "datetime", datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    )
+                    else event["datetime"]
                 )
                 device["course"] = event.get("course", 0.0)
                 device["status"] = "online"
-
+                print(device)
                 break
         await self.ws_manager.save_devices(devices)
 
