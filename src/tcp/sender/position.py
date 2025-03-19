@@ -19,6 +19,9 @@ class Position:
                 device["lastupdate"], event["datetime"]
             ):
                 print(f"Posicion aceptada para {device['name']}")
+                laststop = device.get(
+                    "laststop", datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                )
                 # Create a copy of the original device state before modifying it
                 device_copy = {
                     "id": device["id"],
@@ -26,6 +29,7 @@ class Position:
                     "uniqueid": device["uniqueid"],
                     "latitude": device["latitude"],
                     "longitude": device["longitude"],
+                    "laststop": laststop,
                 }
 
                 # Create the task with the copy
@@ -36,6 +40,19 @@ class Position:
                 device["longitude"] = event.get("longitude", 0.0)
                 device["speed"] = event.get("speed", 0.0)
                 device["lastupdate"] = event["datetime"]
+                device["laststop"] = (
+                    laststop
+                    if is_same_location(
+                        device_copy,
+                        {
+                            "longitude": event.get("longitude", 0.0),
+                            "latitude": event.get("latitude", 0.0),
+                        },
+                    )
+                    else event.get(
+                        "datetime", datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    )
+                )
                 device["course"] = event.get("course", 0.0)
                 device["status"] = "online"
 
@@ -103,7 +120,7 @@ def es_fecha_mas_reciente(fecha_anterior_str, fecha_actual_str):
     fecha_anterior = datetime.strptime(fecha_anterior_str, "%Y-%m-%d %H:%M:%S")
     fecha_actual = datetime.strptime(fecha_actual_str, "%Y-%m-%d %H:%M:%S")
     fecha_ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
+
     print(fecha_anterior)
     print(fecha_actual)
     print(fecha_ahora)
@@ -112,10 +129,27 @@ def es_fecha_mas_reciente(fecha_anterior_str, fecha_actual_str):
     return fecha_actual > fecha_anterior
 
 
-def five_hours_ago(datetime_str):
-    # Convertir la cadena de fecha y hora del vehículo a un objeto datetime
-    vehicle_datetime = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S")
-    # Restar 5 horas a la fecha y hora del vehículo
-    five_hours_ago_datetime = vehicle_datetime - timedelta(hours=5)
-    # Devolver la fecha y hora resultante en formato de cadena
-    return five_hours_ago_datetime.strftime("%Y-%m-%d %H:%M:%S")
+def is_same_location(pos1, pos2):
+    # Redondear las coordenadas a 5 decimales
+    lat1_rounded_5 = round(pos1["latitude"], 5)
+    lon1_rounded_5 = round(pos1["longitude"], 5)
+
+    lat2_rounded_5 = round(pos2["latitude"], 5)
+    lon2_rounded_5 = round(pos2["longitude"], 5)
+
+    # Comparar las coordenadas redondeadas a 5 decimales
+    if lat1_rounded_5 == lat2_rounded_5 and lon1_rounded_5 == lon2_rounded_5:
+        return True
+
+    # Redondear las coordenadas a 4 decimales
+    lat1_rounded_4 = round(pos1["latitude"], 4)
+    lon1_rounded_4 = round(pos1["longitude"], 4)
+
+    lat2_rounded_4 = round(pos2["latitude"], 4)
+    lon2_rounded_4 = round(pos2["longitude"], 4)
+
+    # Verificar si el 4º decimal redondeado hacia el 4º decimal es igual
+    if lat1_rounded_4 == lat2_rounded_4 and lon1_rounded_4 == lon2_rounded_4:
+        return True
+
+    return False
