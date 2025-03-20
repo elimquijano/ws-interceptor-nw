@@ -22,7 +22,6 @@ class Position:
                 laststop = device.get(
                     "laststop", datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 )
-                print(f"laststop: {laststop}")
                 # Create a copy of the original device state before modifying it
                 device_copy = {
                     "id": device["id"],
@@ -30,7 +29,6 @@ class Position:
                     "uniqueid": device["uniqueid"],
                     "latitude": device["latitude"],
                     "longitude": device["longitude"],
-                    "laststop": laststop,
                 }
 
                 # Create the task with the copy
@@ -42,19 +40,10 @@ class Position:
                 device["speed"] = event.get("speed", 0.0)
                 device["lastupdate"] = event["datetime"]
                 device["laststop"] = (
-                    laststop
-                    if is_same_location(
-                        device_copy,
-                        {
-                            "longitude": event.get("longitude", 0.0),
-                            "latitude": event.get("latitude", 0.0),
-                        },
-                    )
-                    else event["datetime"]
+                    laststop if event.get("speed", 0.0) == 0.0 else event["datetime"]
                 )
                 device["course"] = event.get("course", 0.0)
                 device["status"] = "online"
-                print(device)
                 break
         await self.ws_manager.save_devices(devices)
 
