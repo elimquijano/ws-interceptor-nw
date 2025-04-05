@@ -197,7 +197,7 @@ def decode_h02(full_string):
         if not (
             raw_message.startswith("*HQ,") or raw_message.startswith("HQ,")
         ) or not raw_message.endswith("#"):
-            print({"error": "Formato de mensaje inválido", "raw": raw_message})
+            # print({"error": "Formato de mensaje inválido", "raw": raw_message})
             continue
 
         # Normalizar el mensaje (asegurar que comience con *HQ)
@@ -283,6 +283,6 @@ def decode_h02(full_string):
             continue
 
         # Si no coincide con ninguno de los patrones conocidos
-        print({"error": "Formato de mensaje no reconocido", "raw": raw_message})
+        # print({"error": "Formato de mensaje no reconocido", "raw": raw_message})
 
     return results

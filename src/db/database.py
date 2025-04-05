@@ -20,13 +20,13 @@ class Database:
             if self.connection.is_connected():
                 print("Conexión exitosa a la base de datos")
         except Error as e:
-            print(f"Error al conectar a la base de datos: {e}")
+            # print(f"Error al conectar a la base de datos: {e}")
             self.connection = None
 
     def close_connection(self):
         if self.connection.is_connected():
             self.connection.close()
-            print("Conexión cerrada")
+            # print("Conexión cerrada")
 
     def get_connection(self):
         return self.connection

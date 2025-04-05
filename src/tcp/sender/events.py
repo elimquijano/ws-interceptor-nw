@@ -31,7 +31,7 @@ class Events:
                 }
                 asyncio.create_task(send_notificacion(users, process_data))
                 asyncio.create_task(self.ws_manager.send_events(users, process_data))
-                print(f"Event created")
+                # print(f"Event created")
 
     async def create_sos_event(self, device):
         # Buscar usuarios asociados al dispositivo
@@ -49,7 +49,7 @@ class Events:
 
         asyncio.create_task(send_notificacion(users, sos_data))
         asyncio.create_task(self.ws_manager.send_events(users, sos_data))
-        print("SOS event created")
+        # print("SOS event created")
 
 
 async def send_push_notification(token, event):
@@ -231,7 +231,7 @@ async def send_push_notification(token, event):
         try:
             response = requests.post(url, headers=headers, data=json.dumps(data))
             # Muestra el estado de la respuesta
-            print({"status": response.status_code, "message": response.json()})
+            # print({"status": response.status_code, "message": response.json()})
 
         except requests.exceptions.RequestException as e:
             print(f"Ocurrió un error al realizar la solicitud: {e}")

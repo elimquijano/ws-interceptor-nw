@@ -18,7 +18,7 @@ class Position:
             if device["uniqueid"] == event["imei"] and es_fecha_mas_reciente(
                 device["lastupdate"], event["datetime"]
             ):
-                print(f"Posicion aceptada para {device['name']}")
+                # print(f"Posicion aceptada para {device['name']}")
                 laststop = device.get(
                     "laststop", datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 )
@@ -81,7 +81,7 @@ class Position:
                 users = ud_controller.get_users(device["id"])
                 asyncio.create_task(send_notificacion(users, geofence_data))
                 asyncio.create_task(self.ws_manager.send_events(users, geofence_data))
-                print("Geofence event")
+                # print("Geofence event")
 
     async def update_lastupdate(self, port, event):
         devices = self.ws_manager.devices
@@ -109,9 +109,9 @@ def es_fecha_mas_reciente(fecha_anterior_str, fecha_actual_str):
     fecha_actual = datetime.strptime(fecha_actual_str, "%Y-%m-%d %H:%M:%S")
     fecha_ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    print(fecha_anterior)
-    print(fecha_actual)
-    print(fecha_ahora)
+    # print(fecha_anterior)
+    # print(fecha_actual)
+    # print(fecha_ahora)
 
     # Comparar las fechas
     return fecha_actual > fecha_anterior

@@ -24,12 +24,12 @@ class WebSocketServer:
 
         # Verificar si se proporcionaron username y password
         if not username or not password:
-            print("Connection attempt without credentials")
+            # print("Connection attempt without credentials")
             return web.HTTPForbidden(reason="Authentication required")
 
         auth = login(username, password)
         if not auth:
-            print("Authentication failed")
+            # print("Authentication failed")
             return web.HTTPForbidden(reason="Authentication failed")
 
         # Obtener dispositivos del usuario conectado
@@ -40,7 +40,7 @@ class WebSocketServer:
         device_ids = {item["deviceid"] for item in user_devices}
         # Filtrar vehículos solo del usuario conectado
         devices = [obj for obj in self.ws_manager.devices if obj["id"] in device_ids]
-        print(f"New WebSocket client connected - Username: {username}")
+        # print(f"New WebSocket client connected - Username: {username}")
 
         ws = web.WebSocketResponse()
         await ws.prepare(request)  # Preparar el WebSocket antes de registrarlo
@@ -79,19 +79,19 @@ class WebSocketServer:
         token = request.query.get("t")
 
         if not token or token not in self.guest_tokens:
-            print("Invalid or expired token")
+            # print("Invalid or expired token")
             return web.HTTPForbidden(reason="Invalid or expired token")
 
         guest_info = self.guest_tokens[token]
         if guest_info["expires_at"] < datetime.now():
-            print("Token has expired")
+            # print("Token has expired")
             return web.HTTPForbidden(reason="Token has expired")
 
         device_id = guest_info["deviceid"]
         devices = [
             obj for obj in self.ws_manager.devices if str(obj["id"]) == str(device_id)
         ]
-        print(f"New Guest WebSocket client connected - Token: {token}")
+        # print(f"New Guest WebSocket client connected - Token: {token}")
 
         ws = web.WebSocketResponse()
         await ws.prepare(request)
@@ -227,7 +227,7 @@ class WebSocketServer:
         await asyncio.sleep((expires_at - datetime.now()).total_seconds())
         if token in self.guest_tokens:
             del self.guest_tokens[token]
-            print(f"Guest token {token} has expired and been removed.")
+            # print(f"Guest token {token} has expired and been removed.")
             # Desconectar a todos los clientes invitados con este token
             for websocket, guest_info in list(self.ws_manager.guest_clients.items()):
                 if guest_info["token"] == token:
@@ -251,9 +251,7 @@ class WebSocketServer:
                     device["speed"] = 0.0
                 else:
                     device["status"] = "online"
-            print(
-                f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Devices statuses updated"
-            )
+            # print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Devices statuses updated")
 
     async def start(self):
         await self.save_devices_init()
@@ -266,5 +264,5 @@ class WebSocketServer:
         await runner.setup()
         site = web.TCPSite(runner, self.host, self.port)
         await site.start()
-        print(f"WebSocket Server running on ws://{self.host}:{self.port}/")
-        print(f"HTTP API endpoint running on http://{self.host}:{self.port}/api")
+        # print(f"WebSocket Server running on ws://{self.host}:{self.port}/")
+        # print(f"HTTP API endpoint running on http://{self.host}:{self.port}/api")

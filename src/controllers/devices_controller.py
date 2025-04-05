@@ -27,7 +27,7 @@ class DevicesController:
             if response.status_code == 200:
                 return response.json()
         except Exception as e:
-            print(f"Error al obtener los dispositivos: {e}")
+            # print(f"Error al obtener los dispositivos: {e}")
             return None
 
     def get_user(self, user_id):
