@@ -27,9 +27,9 @@ class TCPServer:
         if port == 6001:  # Coban
             data_array = decode_gps103(data)
         elif port == 6013:  # Sinotrack
-            print(f"\n{port} - {data}")
             data_array = decode_h02(data)
         elif port == 6027:  # Teltonika
+            print(f"\n{port} - {data}")
             return
         else:
             return
