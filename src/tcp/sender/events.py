@@ -229,10 +229,10 @@ async def send_push_notification(token, event):
     if data is not None:
         # Realiza la solicitud POST
         try:
-            print(f"\n{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} Enviar notificacion a token {token['token']}")
+            print(f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Enviar notificacion a token {token['token']}")
             response = requests.post(url, headers=headers, data=json.dumps(data))
             # Muestra el estado de la respuesta
-            print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), {"status": response.status_code, "message": response.json()})
+            print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), {"status": response.status_code, "message": response.json()})
 
         except requests.exceptions.RequestException as e:
             print(f"Ocurrió un error al realizar la solicitud: {e}")
@@ -245,7 +245,7 @@ async def get_tokens_and_send_notification(userid, event):
         response = requests.get(url)
         if response.status_code == 200:
             tokens = response.json()
-            print(f"\n{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} Enviar notificacion a tokens")
+            print(f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Enviar notificacion a tokens")
             for token in tokens:
                 # enviar notificacion a cada token
                 asyncio.create_task(send_push_notification(token, event))
@@ -254,7 +254,7 @@ async def get_tokens_and_send_notification(userid, event):
 
 
 async def send_notificacion(users, event):
-    print(f"\n{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} Enviar notificacion a usuarios")
+    print(f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Enviar notificacion a usuarios")
     for user in users:
         asyncio.create_task(get_tokens_and_send_notification(user["userid"], event))
 

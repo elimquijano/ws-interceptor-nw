@@ -21,7 +21,7 @@ class TCPServer:
             asyncio.create_task(p.update_position(port, data))
         elif data["type"] == "event" and data["event_type"] != "unknown":
             e = Events()
-            print(f"\n{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} Pasar a enviar a usuarios")
+            print(f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Pasar a enviar a usuarios")
             asyncio.create_task(e.send_events_to_users(port, data))
 
     async def tcp_to_json(self, port, data):
@@ -38,7 +38,7 @@ class TCPServer:
 
         if len(data_array) > 0:
             for data_dict in data_array:
-                print(f"\n{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} - {port} - {data_dict}")
+                print(f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {port} - {data_dict}")
                 # Iniciar el procesamiento de datos en segundo plano
                 await self.process_data(port, data_dict)
 
