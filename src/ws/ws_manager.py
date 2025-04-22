@@ -20,27 +20,27 @@ class WebSocketManager:
             "password": password,
             "userid": userid,
         }
-        # print(f"Client registered: {username}")
+        print(f"Client registered: {username}")
 
     async def unregister(self, websocket):
         if websocket in self.clients:
             username = self.clients[websocket]["username"]
             del self.clients[websocket]
-            # print(f"Client disconnected: {username}")
+            print(f"Client disconnected: {username}")
 
     async def register_guest(self, websocket, token):
         self.guest_clients[websocket] = {"token": token}
-        # print(f"Guest registered: {token}")
+        print(f"Guest registered: {token}")
 
     async def unregister_guest(self, websocket):
         if websocket in self.guest_clients:
             token = self.guest_clients[websocket]["token"]
             del self.guest_clients[websocket]
-            # print(f"Guest disconnected: {token}")
+            print(f"Guest disconnected: {token}")
 
     async def send_to_client(self, websocket, message):
         if websocket not in self.clients and websocket not in self.guest_clients:
-            # print(f"WebSocket not found for the client.")
+            print(f"WebSocket not found for the client.")
             return
 
         try:
@@ -51,9 +51,9 @@ class WebSocketManager:
                 websocket
             )
             client_identifier = client_info.get("username") or client_info.get("token")
-            # print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Message sent to {client_identifier}")
+            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Message sent to {client_identifier}")
         except Exception as e:
-            # print(f"Error sending to {client_identifier}: {e}")
+            print(f"Error sending to {client_identifier}: {e}")
             if websocket in self.clients:
                 await self.unregister(websocket)
             elif websocket in self.guest_clients:

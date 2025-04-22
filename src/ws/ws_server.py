@@ -251,7 +251,7 @@ class WebSocketServer:
                     device["speed"] = 0.0
                 else:
                     device["status"] = "online"
-            # print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Devices statuses updated")
+            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Devices statuses updated")
 
     async def start(self):
         await self.save_devices_init()
@@ -264,5 +264,5 @@ class WebSocketServer:
         await runner.setup()
         site = web.TCPSite(runner, self.host, self.port)
         await site.start()
-        # print(f"WebSocket Server running on ws://{self.host}:{self.port}/")
-        # print(f"HTTP API endpoint running on http://{self.host}:{self.port}/api")
+        print(f"WebSocket Server running on ws://{self.host}:{self.port}/")
+        print(f"HTTP API endpoint running on http://{self.host}:{self.port}/api")

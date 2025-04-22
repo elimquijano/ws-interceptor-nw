@@ -81,7 +81,7 @@ class Position:
                 users = ud_controller.get_users(device["id"])
                 asyncio.create_task(send_notificacion(users, geofence_data))
                 asyncio.create_task(self.ws_manager.send_events(users, geofence_data))
-                # print("Geofence event")
+                print("Geofence event")
 
     async def update_lastupdate(self, port, event):
         devices = self.ws_manager.devices

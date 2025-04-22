@@ -4,6 +4,7 @@ from src.tcp.parser.h02 import decode_h02
 from src.tcp.parser.gps103 import decode_gps103
 from src.tcp.sender.position import Position
 from src.tcp.sender.events import Events
+from datetime import datetime
 
 
 class TCPServer:
@@ -20,6 +21,7 @@ class TCPServer:
             asyncio.create_task(p.update_position(port, data))
         elif data["type"] == "event" and data["event_type"] != "unknown":
             e = Events()
+            print(f"\n{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} Pasar a enviar a usuarios")
             asyncio.create_task(e.send_events_to_users(port, data))
 
     async def tcp_to_json(self, port, data):
@@ -36,7 +38,7 @@ class TCPServer:
 
         if len(data_array) > 0:
             for data_dict in data_array:
-                # print(data_dict)
+                print(f"\n{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} - {port} - {data_dict}")
                 # Iniciar el procesamiento de datos en segundo plano
                 await self.process_data(port, data_dict)
 
@@ -66,6 +68,6 @@ class TCPServer:
 
     async def start(self):
         server = await asyncio.start_server(self.handle_client, self.host, self.port)
-        # print(f"TCP server listening on port {self.port}")
+        print(f"TCP server listening on port {self.port}")
         async with server:
             await server.serve_forever()
