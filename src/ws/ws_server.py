@@ -146,7 +146,9 @@ class WebSocketServer:
             await asyncio.sleep(5)
             user_devices = await user_devices_task
             device_ids = {item["deviceid"] for item in user_devices}
-            devices = [obj for obj in self.ws_manager.devices if obj["id"] in device_ids]
+            devices = [
+                obj for obj in self.ws_manager.devices if obj["id"] in device_ids
+            ]
             await self.ws_manager.send_to_all_clients(user_id, {"devices": devices})
 
     async def send_device_periodically_to_guest(self, token, device_id):
@@ -246,14 +248,19 @@ class WebSocketServer:
                 last_update_time = datetime.strptime(
                     device["lastupdate"], "%Y-%m-%d %H:%M:%S"
                 )
-                if current_time - last_update_time > timedelta(minutes=5) and device["status"] == "online":
+                if (
+                    current_time - last_update_time > timedelta(minutes=5)
+                    and device["status"] == "online"
+                ):
                     device["status"] = "offline"
                     device["speed"] = 0.0
                     e = Events()
                     asyncio.create_task(e.create_event(device, "deviceOffline"))
                 else:
                     device["status"] = "online"
-            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Devices statuses updated")
+            print(
+                f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Devices statuses updated"
+            )
 
     async def start(self):
         await self.save_devices_init()
