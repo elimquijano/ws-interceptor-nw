@@ -15,7 +15,8 @@ class Events:
         devices = self.ws_manager.devices
         if event["type"] == "event":
             found_device = next(
-                (device for device in devices if device["uniqueid"] == event["imei"]), None
+                (device for device in devices if device["uniqueid"] == event["imei"]),
+                None,
             )
             if found_device:
                 ud_controller = UserDevicesController()
@@ -33,7 +34,7 @@ class Events:
                 asyncio.create_task(self.ws_manager.send_events(users, process_data))
                 # print(f"Event created")
 
-    async def create_sos_event(self, device):
+    async def create_event(self, device, type):
         # Buscar usuarios asociados al dispositivo
         ud_controller = UserDevicesController()
         users = ud_controller.get_users(device["id"])
@@ -41,7 +42,7 @@ class Events:
             "deviceid": device["id"],
             "name": device["name"],
             "uniqueid": device["uniqueid"],
-            "type": "sos",
+            "type": type,
             "eventtime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "latitude": device["latitude"],
             "longitude": device["longitude"],
@@ -163,6 +164,26 @@ async def send_push_notification(token, event):
                 "sound": "generico.wav",
             },
         }
+    elif event["type"] == "deviceOffline":
+        data = {
+            "to": token["token"],
+            "sound": "generico.wav",
+            "title": "¡Alerta!",
+            "body": f"El vehiculo {event['name']} se encuentra desconectado",
+            "data": {
+                "vehicleId": event["deviceid"],
+                "screen": "Maps",
+            },
+            "channelId": "default-channel",
+            "android": {
+                "channelId": "default-channel",
+                "vibrationPattern": [0, 250, 250, 250],
+                "lightColor": "#FF231F7C",
+            },
+            "ios": {
+                "sound": "generico.wav",
+            },
+        }
     elif event["type"] == "deviceOverspeed":
         data = {
             "to": token["token"],
@@ -229,10 +250,15 @@ async def send_push_notification(token, event):
     if data is not None:
         # Realiza la solicitud POST
         try:
-            print(f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Enviar notificacion a token {token['token']}")
+            print(
+                f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Enviar notificacion a token {token['token']}"
+            )
             response = requests.post(url, headers=headers, data=json.dumps(data))
             # Muestra el estado de la respuesta
-            print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), {"status": response.status_code, "message": response.json()})
+            print(
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                {"status": response.status_code, "message": response.json()},
+            )
 
         except requests.exceptions.RequestException as e:
             print(f"Ocurrió un error al realizar la solicitud: {e}")
@@ -245,7 +271,9 @@ async def get_tokens_and_send_notification(userid, event):
         response = requests.get(url)
         if response.status_code == 200:
             tokens = response.json()
-            print(f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Enviar notificacion a tokens")
+            print(
+                f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Enviar notificacion a {len(tokens)} tokens de usuario {userid}"
+            )
             for token in tokens:
                 # enviar notificacion a cada token
                 asyncio.create_task(send_push_notification(token, event))
@@ -254,7 +282,8 @@ async def get_tokens_and_send_notification(userid, event):
 
 
 async def send_notificacion(users, event):
-    print(f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Enviar notificacion a usuarios")
+    print(
+        f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Enviar notificacion a {len(users)} usuarios"
+    )
     for user in users:
         asyncio.create_task(get_tokens_and_send_notification(user["userid"], event))
-

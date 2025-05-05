@@ -185,7 +185,7 @@ class WebSocketServer:
             return web.HTTPNotFound(reason="Vehiculo no encontrado", status=404)
 
         e = Events()
-        asyncio.create_task(e.create_sos_event(found_device))
+        asyncio.create_task(e.create_event(found_device, "sos"))
 
         return web.Response(text="Evento SOS creado correctamente", status=200)
 
@@ -236,7 +236,7 @@ class WebSocketServer:
 
     async def update_device_status(self):
         while True:
-            await asyncio.sleep(60)
+            await asyncio.sleep(300)  # Espera 5 minutos (300 segundos)
             current_time = datetime.now()
             for device in self.ws_manager.devices:
                 if device["lastupdate"] is None:
@@ -246,9 +246,11 @@ class WebSocketServer:
                 last_update_time = datetime.strptime(
                     device["lastupdate"], "%Y-%m-%d %H:%M:%S"
                 )
-                if current_time - last_update_time > timedelta(minutes=1):
+                if current_time - last_update_time > timedelta(minutes=5):
                     device["status"] = "offline"
                     device["speed"] = 0.0
+                    e = Events()
+                    asyncio.create_task(e.create_event(device, "deviceOffline"))
                 else:
                     device["status"] = "online"
             print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Devices statuses updated")
