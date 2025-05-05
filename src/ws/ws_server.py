@@ -237,29 +237,83 @@ class WebSocketServer:
                     await self.ws_manager.unregister_guest(websocket)
 
     async def update_device_status(self):
+        """
+        Tarea periódica que revisa el estado de los dispositivos basándose
+        en su último tiempo de actualización.
+        """
         while True:
-            await asyncio.sleep(300)  # Espera 5 minutos (300 segundos)
+            await asyncio.sleep(300)  # Esperar 5 minutos
             current_time = datetime.now()
+            devices_updated = 0
+            offline_threshold = timedelta(minutes=5)
+
             for device in self.ws_manager.devices:
-                if device["lastupdate"] is None:
-                    device["status"] = "offline"
-                    device["speed"] = 0.0
-                    continue
-                last_update_time = datetime.strptime(
-                    device["lastupdate"], "%Y-%m-%d %H:%M:%S"
-                )
-                if (
-                    current_time - last_update_time > timedelta(minutes=5)
-                    and device["status"] == "online"
-                ):
-                    device["status"] = "offline"
-                    device["speed"] = 0.0
-                    e = Events()
-                    asyncio.create_task(e.create_event(device, "deviceOffline"))
+                device_id = device.get("id", "ID Desconocido")  # Para logging útil
+                last_update_str = device.get("lastupdate")
+                current_status = device.get("status")  # Obtener estado actual
+
+                new_status = None  # Para rastrear si el estado necesita cambiar
+                needs_event = False
+
+                if last_update_str is None:
+                    # Si nunca hubo update, marcar como offline si no lo está ya
+                    if current_status != "offline":
+                        new_status = "offline"
                 else:
-                    device["status"] = "online"
+                    try:
+                        # Convertir last_update_str a datetime
+                        last_update_time = datetime.strptime(
+                            last_update_str, "%Y-%m-%d %H:%M:%S"
+                        )
+                        time_difference = current_time - last_update_time
+                        if time_difference > offline_threshold:
+                            # Excedió el umbral, debería estar offline
+                            if current_status == "online":
+                                # ¡Transición! Estaba online, ahora pasa a offline
+                                new_status = "offline"
+                                needs_event = True
+                                print(
+                                    f"Dispositivo {device_id} transicionó a offline (última act: {last_update_str})."
+                                )
+                            elif current_status != "offline":
+                                # No estaba 'online' (quizás 'None' u otro estado), pero debería ser 'offline'
+                                new_status = "offline"
+                                print(
+                                    f"Dispositivo {device_id} marcado como offline (estado previo: {current_status}, última act: {last_update_str})."
+                                )
+                            # else: ya estaba offline, no hacer nada con el estado
+
+                        else:
+                            # Dentro del umbral, debería estar online
+                            if current_status != "online":
+                                new_status = "online"
+                                # No se genera evento al pasar a online (según lógica original)
+                                print(
+                                    f"Dispositivo {device_id} marcado/confirmado como online (última act: {last_update_str})."
+                                )
+                            # else: ya estaba online, no hacer nada con el estado
+
+                    except ValueError:
+                        # Error al parsear la fecha
+                        print(
+                            f"Formato de fecha inválido '{last_update_str}' para dispositivo {device_id}. Marcando como offline."
+                        )
+                        if current_status != "offline":
+                            new_status = "offline"
+
+                # Aplicar cambios si es necesario
+                if new_status is not None:
+                    devices_updated += 1
+                    device["status"] = new_status
+                    if new_status == "offline":
+                        device["speed"] = 0.0
+                    # Crear evento SÓLO si hubo transición online -> offline
+                    if needs_event:
+                        e = Events()
+                        asyncio.create_task(e.create_event(device, "deviceOffline"))
+
             print(
-                f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Devices statuses updated"
+                f"Ciclo de actualización completado. {devices_updated} dispositivos actualizados."
             )
 
     async def start(self):
