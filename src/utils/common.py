@@ -1,5 +1,6 @@
 import requests
 import os
+import json
 from dotenv import load_dotenv
 
 # Cargar las variables de entorno desde el archivo .env
@@ -10,6 +11,8 @@ API_URL_TRACCAR = URL_HOST_TRACCAR + "api/"
 
 URL_HOST_ADMIN_NWPERU = os.getenv("URL_HOST_ADMIN_NWPERU")
 API_URL_ADMIN_NWPERU = URL_HOST_ADMIN_NWPERU + "api/"
+
+HOST_URL_WHATSAPP = os.getenv("URL_HOST_API_WHATSAPP")
 
 
 def login(username, password):
@@ -26,3 +29,14 @@ def login(username, password):
         return response.json()
     else:
         return None
+
+
+async def send_message_whatsapp(phone, message):
+    url = HOST_URL_WHATSAPP + "send-message"
+    payload = json.dumps({"number": phone, "message": message})
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + os.getenv("TOKEN_WHATSAPP"),
+    }
+    response = requests.request("POST", url, headers=headers, data=payload)
+    print(response.text)

@@ -6,6 +6,7 @@ from src.controllers.user_devices_controller import UserDevicesController
 from src.controllers.devices_controller import DevicesController
 from src.tcp.sender.events import Events
 from datetime import datetime, timedelta
+from src.utils.common import send_message_whatsapp
 import uuid
 
 
@@ -311,6 +312,15 @@ class WebSocketServer:
                     if needs_event:
                         e = Events()
                         asyncio.create_task(e.create_event(device, "deviceOffline"))
+                        asyncio.create_task(
+                            send_message_whatsapp(
+                                "51999369448",
+                                "Se desconectó el dispositivo "
+                                + device["name"]
+                                + " el "
+                                + datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            )
+                        )
 
             print(
                 f"Ciclo de actualización completado. {devices_updated} dispositivos actualizados."
