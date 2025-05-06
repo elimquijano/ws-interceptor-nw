@@ -36,7 +36,7 @@ async def send_message_whatsapp(phone, message):
     payload = json.dumps({"number": phone, "message": message})
     headers = {
         "Content-Type": "application/json",
-        "Authorization": "Bearer " + os.getenv("TOKEN_WHATSAPP"),
+        "Authorization": "Bearer " + os.getenv("TOKEN_API_WHATSAPP"),
     }
     response = requests.request("POST", url, headers=headers, data=payload)
     print(response.text)

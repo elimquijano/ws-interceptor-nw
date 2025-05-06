@@ -243,10 +243,10 @@ class WebSocketServer:
         en su último tiempo de actualización.
         """
         while True:
-            await asyncio.sleep(300)  # Esperar 5 minutos
+            await asyncio.sleep(600)  # Esperar 10 minutos
             current_time = datetime.now()
             devices_updated = 0
-            offline_threshold = timedelta(minutes=5)
+            offline_threshold = timedelta(minutes=10)
 
             for device in self.ws_manager.devices:
                 device_id = device.get("id", "ID Desconocido")  # Para logging útil
@@ -315,10 +315,7 @@ class WebSocketServer:
                         asyncio.create_task(
                             send_message_whatsapp(
                                 "51999369448",
-                                "Se desconectó el dispositivo "
-                                + device["name"]
-                                + " el "
-                                + datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                f"El vehículo {device['name']} se desconectó hace 10 minutos.",
                             )
                         )
 
