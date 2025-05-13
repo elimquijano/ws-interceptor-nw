@@ -318,6 +318,12 @@ class WebSocketServer:
                                 f"El vehículo {device['name']} se desconectó hace 10 minutos.",
                             )
                         )
+                        asyncio.create_task(
+                            send_message_whatsapp(
+                                "51929804291",
+                                f"El vehículo {device['name']} se desconectó hace 10 minutos.",
+                            )
+                        )
 
             print(
                 f"Ciclo de actualización completado. {devices_updated} dispositivos actualizados."
