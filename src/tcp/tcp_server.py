@@ -96,8 +96,6 @@ class TCPServer:
         Lee los datos, los acumula hasta tener un JSON completo, y luego los procesa.
         """
         peername = writer.get_extra_info("peername")
-        logging.info(f"Nueva conexión de {peername}")
-
         full_data_buffer = (
             bytearray()
         )
@@ -143,9 +141,6 @@ class TCPServer:
                             f"JSON de {peername} no contiene 'port' o 'data'. Datos: {decoded_string[:500]}..."
                         )
                     else:
-                        logging.info(
-                            f"JSON válido recibido de {peername} para puerto {port}. Procesando..."
-                        )
                         await self.tcp_to_json(port, message_data)
 
                 except json.JSONDecodeError as e:
@@ -180,7 +175,6 @@ class TCPServer:
                 f"Excepción inesperada manejando cliente {peername}: {e}", exc_info=True
             )  # exc_info=True para traceback
         finally:
-            logging.info(f"Cerrando conexión con {peername}")
             if not writer.is_closing():
                 writer.close()
                 await writer.wait_closed()
