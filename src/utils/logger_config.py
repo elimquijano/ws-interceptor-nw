@@ -1,7 +1,7 @@
 import logging
 import sys
 
-LOG_LEVEL = logging.INFO  # O logging.DEBUG para más detalle
+LOG_LEVEL = logging.INFO
 
 
 def setup_logging():
@@ -14,4 +14,3 @@ def setup_logging():
         ch = logging.StreamHandler(sys.stdout)
         ch.setFormatter(formatter)
         logger.addHandler(ch)
-        # logger.info("Logging configurado.")
