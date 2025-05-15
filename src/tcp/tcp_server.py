@@ -83,9 +83,9 @@ class TCPServer:
             return
 
         if data_array:  # Asegurarse que data_array no sea None y tenga elementos
-            logging.info(f"Puerto {port} decodificó {len(data_array)} mensajes.")
+            # logging.info(f"Puerto {port} decodificó {len(data_array)} mensajes.")
             for data_dict in data_array:
-                logging.info(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {port} - {data_dict}") # Esto puede ser muy verboso
+                # logging.info(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {port} - {data_dict}") # Esto puede ser muy verboso
                 await self.process_data(port, data_dict)
 
     async def handle_client(
