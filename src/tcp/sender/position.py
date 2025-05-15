@@ -1,143 +1,196 @@
 import asyncio
-from datetime import datetime, timedelta
+import logging
+from datetime import datetime
 from src.controllers.device_geofence_controller import DeviceGeofenceController
 from src.utils.geofence import check_geofence_event
 from src.ws.ws_manager import WebSocketManager
-from src.controllers.user_devices_controller import UserDevicesController
 from src.controllers.devices_controller import DevicesController
-from src.tcp.sender.events import send_notificacion
+from src.tcp.sender.events import EventNotifierService
+
+logger = logging.getLogger(__name__)
 
 
-class Position:
-    def __init__(self):
-        self.ws_manager = WebSocketManager()
-
-    async def update_position(self, port, event):
-        devices = self.ws_manager.devices
-        for device in devices:
-            if device["uniqueid"] == event["imei"] and es_fecha_mas_reciente(
-                device["lastupdate"], event["datetime"]
-            ):
-                # print(f"Posicion aceptada para {device['name']}")
-                laststop = device.get(
-                    "laststop", datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                )
-                # Create a copy of the original device state before modifying it
-                device_copy = {
-                    "id": device["id"],
-                    "name": device["name"],
-                    "uniqueid": device["uniqueid"],
-                    "latitude": device["latitude"],
-                    "longitude": device["longitude"],
-                }
-
-                # Create the task with the copy
-                asyncio.create_task(self.check_geofence(device_copy, event))
-
-                # Now update the original device
-                device["latitude"] = event.get("latitude", 0.0)
-                device["longitude"] = event.get("longitude", 0.0)
-                device["speed"] = event.get("speed", 0.0)
-                device["lastupdate"] = event["datetime"]
-                device["laststop"] = (
-                    laststop if event.get("speed", 0.0) == 0.0 else event["datetime"]
-                )
-                device["course"] = event.get("course", 0.0)
-                device["status"] = "online"
-                break
-        await self.ws_manager.save_devices(devices)
-
-    async def check_geofence(self, device, event):
-        dg_controller = DeviceGeofenceController()
-        geofences = dg_controller.get_geofences(device["id"])
-
-        for geofence in geofences:
-            prev_position = {
-                "latitude": device["latitude"],
-                "longitude": device["longitude"],
-            }
-            current_position = {
-                "latitude": event["latitude"],
-                "longitude": event["longitude"],
-            }
-
-            geofence_event = check_geofence_event(
-                geofence["area"], prev_position, current_position
-            )
-
-            if geofence_event is not None:
-                geofence_data = {
-                    "deviceid": device["id"],
-                    "name": device["name"],
-                    "uniqueid": device["uniqueid"],
-                    "type": geofence_event,
-                    "eventtime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "latitude": event["latitude"],
-                    "longitude": event["longitude"],
-                    "geofencename": geofence["name"],
-                }
-                # Buscar usuarios asociados al dispositivo
-                ud_controller = UserDevicesController()
-                users = ud_controller.get_users(device["id"])
-                asyncio.create_task(send_notificacion(users, geofence_data))
-                asyncio.create_task(self.ws_manager.send_events(users, geofence_data))
-                print("Geofence event")
-
-    async def update_lastupdate(self, port, event):
-        devices = self.ws_manager.devices
-        found_device = next(
-            (device for device in devices if device["uniqueid"] == event["imei"]), None
+def is_more_recent_gps_date(
+    previous_datetime_str: str | None, current_datetime_str: str
+) -> bool:
+    if not previous_datetime_str:
+        return True
+    try:
+        prev_dt = datetime.strptime(previous_datetime_str, "%Y-%m-%d %H:%M:%S")
+        curr_dt = datetime.strptime(current_datetime_str, "%Y-%m-%d %H:%M:%S")
+        return curr_dt > prev_dt
+    except ValueError:
+        logger.warning(
+            f"Error comparando fechas GPS: '{previous_datetime_str}' vs '{current_datetime_str}'"
         )
-        if not found_device:
-            # Es un vehiculo nuevo, se debe agregar a la lista de dispositivos
-            device_controller = DevicesController()
-            devices = device_controller.get_devices()
-            await self.ws_manager.save_devices(devices)
-            devices = self.ws_manager.devices
-
-        for device in devices:
-            if device["uniqueid"] == event["imei"]:
-                device["lastupdate"] = event["datetime"]
-                device["status"] = "online"
-                break
-        await self.ws_manager.save_devices(devices)
+        return False
 
 
-def es_fecha_mas_reciente(fecha_anterior_str, fecha_actual_str):
-    # Convertir las cadenas a objetos datetime
-    fecha_anterior = datetime.strptime(fecha_anterior_str, "%Y-%m-%d %H:%M:%S")
-    fecha_actual = datetime.strptime(fecha_actual_str, "%Y-%m-%d %H:%M:%S")
-    fecha_ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+class PositionUpdater:
+    def __init__(
+        self, ws_manager: WebSocketManager, event_notifier: EventNotifierService
+    ):
+        self.ws_manager = ws_manager
+        self.event_notifier = event_notifier
+        self.device_controller = (
+            DevicesController()
+        )  # Instancia para uso interno de PositionUpdater
+        self._refresh_lock = (
+            asyncio.Lock()
+        )  # Para evitar refrescos concurrentes del caché completo
+        logger.info("PositionUpdater instanciado.")
 
-    # print(fecha_anterior)
-    # print(fecha_actual)
-    # print(fecha_ahora)
+    async def _close_internal_controllers(self):
+        """Cierra controladores internos si es necesario."""
+        if hasattr(self.device_controller, "close") and callable(
+            getattr(self.device_controller, "close")
+        ):
+            await asyncio.to_thread(self.device_controller.close)
+            logger.info("DevicesController de PositionUpdater cerrado.")
 
-    # Comparar las fechas
-    return fecha_actual > fecha_anterior
+    async def _refresh_full_devices_cache_if_needed(self):
+        """Refresca el caché global de dispositivos si un IMEI es desconocido."""
+        async with self._refresh_lock:  # Solo un refresco a la vez
+            logger.info(
+                "Iniciando refresco completo del caché de dispositivos desde PositionUpdater..."
+            )
+            try:
+                all_devices_from_db = await asyncio.to_thread(
+                    self.device_controller.get_devices
+                )
+                await self.ws_manager.save_devices(
+                    all_devices_from_db
+                )  # Usa el método correcto
+                logger.info(
+                    f"Caché de dispositivos refrescado con {len(all_devices_from_db)} dispositivos."
+                )
+            except Exception as e:
+                logger.error(
+                    f"Error durante el refresco completo del caché: {e}", exc_info=True
+                )
 
+    async def process_position_update(self, position_event_data: dict):
+        imei = position_event_data.get("imei")
+        new_datetime_str = position_event_data.get("datetime")
+        if not imei or not new_datetime_str:
+            return
 
-def is_same_location(pos1, pos2):
-    # Redondear las coordenadas a 5 decimales
-    lat1_rounded_5 = round(pos1["latitude"], 5)
-    lon1_rounded_5 = round(pos1["longitude"], 5)
+        device_in_cache = self.ws_manager.get_device_by_uniqueid(str(imei))
 
-    lat2_rounded_5 = round(pos2["latitude"], 5)
-    lon2_rounded_5 = round(pos2["longitude"], 5)
+        if not device_in_cache:
+            await self._refresh_full_devices_cache_if_needed()  # Refresca si no está
+            device_in_cache = self.ws_manager.get_device_by_uniqueid(
+                str(imei)
+            )  # Intenta de nuevo
+            if not device_in_cache:
+                logger.warning(
+                    f"Posición IMEI {imei}: dispositivo no encontrado tras refresco."
+                )
+                return
 
-    # Comparar las coordenadas redondeadas a 5 decimales
-    if lat1_rounded_5 == lat2_rounded_5 and lon1_rounded_5 == lon2_rounded_5:
-        return True
+        if not is_more_recent_gps_date(
+            device_in_cache.get("lastupdate"), new_datetime_str
+        ):
+            return
 
-    # Redondear las coordenadas a 4 decimales
-    lat1_rounded_4 = round(pos1["latitude"], 4)
-    lon1_rounded_4 = round(pos1["longitude"], 4)
+        previous_geo_state = {
+            "id": device_in_cache["id"],
+            "name": device_in_cache.get("name"),
+            "uniqueid": device_in_cache["uniqueid"],
+            "latitude": device_in_cache.get("latitude"),
+            "longitude": device_in_cache.get("longitude"),
+        }
 
-    lat2_rounded_4 = round(pos2["latitude"], 4)
-    lon2_rounded_4 = round(pos2["longitude"], 4)
+        # Tu lógica para laststop
+        laststop_to_use_if_stopped = device_in_cache.get(
+            "laststop", datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
 
-    # Verificar si el 4º decimal redondeado hacia el 4º decimal es igual
-    if lat1_rounded_4 == lat2_rounded_4 and lon1_rounded_4 == lon2_rounded_4:
-        return True
+        # Actualizar datos del dispositivo en el caché (el objeto es modificado por referencia)
+        device_in_cache["latitude"] = position_event_data.get("latitude", 0.0)
+        device_in_cache["longitude"] = position_event_data.get("longitude", 0.0)
+        current_speed = position_event_data.get("speed", 0.0)
+        device_in_cache["speed"] = current_speed
+        device_in_cache["course"] = position_event_data.get("course", 0.0)
+        device_in_cache["lastupdate"] = new_datetime_str
+        device_in_cache["status"] = "online"
+        device_in_cache["laststop"] = (
+            laststop_to_use_if_stopped if current_speed == 0.0 else new_datetime_str
+        )
 
-    return False
+        await self._check_geofence_transitions(previous_geo_state, position_event_data)
+
+    async def _check_geofence_transitions(
+        self, previous_device_state: dict, current_position_data: dict
+    ):
+        device_id = previous_device_state.get("id")
+        if device_id is None:
+            return
+
+        dg_controller_local = DeviceGeofenceController()  # Instancia local
+        try:
+            geofences_for_device = await asyncio.to_thread(
+                dg_controller_local.get_geofences, device_id
+            )
+            if not geofences_for_device:
+                return
+
+            current_geo_point = {
+                "latitude": current_position_data["latitude"],
+                "longitude": current_position_data["longitude"],
+            }
+            previous_geo_point = {
+                "latitude": previous_device_state["latitude"],
+                "longitude": previous_device_state["longitude"],
+            }
+            if (
+                previous_geo_point["latitude"] is None
+                or previous_geo_point["longitude"] is None
+            ):
+                return
+
+            for geofence in geofences_for_device:
+                geofence_area = geofence.get("area")
+                if not geofence_area:
+                    continue
+                transition_type = check_geofence_event(
+                    geofence_area, previous_geo_point, current_geo_point
+                )
+                if transition_type:
+                    await self.event_notifier.create_and_notify_custom_event(
+                        device_info=previous_device_state,
+                        event_type=transition_type,
+                        additional_data={"geofencename": geofence.get("name", "N/A")},
+                    )
+        except Exception as e:
+            logger.error(
+                f"Error obteniendo/procesando geocercas para device_id {device_id}: {e}",
+                exc_info=True,
+            )
+        finally:
+            if hasattr(dg_controller_local, "close") and callable(
+                getattr(dg_controller_local, "close")
+            ):
+                await asyncio.to_thread(
+                    dg_controller_local.close
+                )  # Cerrar instancia local
+
+    async def update_device_last_seen(self, connection_event_data: dict):
+        imei = connection_event_data.get("imei")
+        conn_dt_str = connection_event_data.get("datetime")
+        if not imei or not conn_dt_str:
+            return
+
+        device_in_cache = self.ws_manager.get_device_by_uniqueid(str(imei))
+        if not device_in_cache:
+            await self._refresh_full_devices_cache_if_needed()
+            device_in_cache = self.ws_manager.get_device_by_uniqueid(str(imei))
+            if not device_in_cache:
+                logger.warning(
+                    f"Conexión IMEI {imei}: dispositivo no encontrado tras refresco."
+                )
+                return
+
+        if is_more_recent_gps_date(device_in_cache.get("lastupdate"), conn_dt_str):
+            device_in_cache["lastupdate"] = conn_dt_str
+            device_in_cache["status"] = "online"

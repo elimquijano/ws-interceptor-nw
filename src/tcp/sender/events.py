@@ -1,289 +1,306 @@
-import json
-import requests
 import asyncio
+import logging
+from datetime import datetime
+import aiohttp
+
 from src.controllers.user_devices_controller import UserDevicesController
 from src.utils.common import API_URL_ADMIN_NWPERU
 from src.ws.ws_manager import WebSocketManager
-from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+NOTIFICATION_TEMPLATES = {
+    "default": {
+        "sound": "generico.wav",
+        "title": "¡Alerta!",
+        "channelId": "default-channel",
+        "android": {
+            "channelId": "default-channel",
+            "vibrationPattern": [0, 250, 250, 250],
+            "lightColor": "#FF231F7C",
+        },
+        "ios": {"sound": "generico.wav"},
+    },
+    "alarm": {
+        "sound": "alarmanoti.wav",
+        "title": "¡Alerta!",
+        "channelId": "alarm-channel",
+        "android": {"channelId": "alarm-channel"},
+        "ios": {"sound": "alarmanoti.wav"},
+    },
+    "sos": {
+        "sound": "sirena.wav",
+        "title": "¡ALERTA DE SOS!",
+        "channelId": "sos-channel",
+        "android": {"channelId": "sos-channel"},
+        "ios": {"sound": "sirena.wav"},
+    },
+}
 
 
-class Events:
-    def __init__(self):
-        self.ws_manager = WebSocketManager()
-
-    async def send_events_to_users(self, port, event):
-        devices = self.ws_manager.devices
-        if event["type"] == "event":
-            found_device = next(
-                (device for device in devices if device["uniqueid"] == event["imei"]),
-                None,
-            )
-            if found_device:
-                ud_controller = UserDevicesController()
-                users = ud_controller.get_users(found_device["id"])
-                process_data = {
-                    "deviceid": found_device["id"],
-                    "name": found_device["name"],
-                    "uniqueid": event["imei"],
-                    "type": event["event_type"],
-                    "eventtime": event["datetime"],
-                    "latitude": found_device["latitude"],
-                    "longitude": found_device["longitude"],
-                }
-                asyncio.create_task(send_notificacion(users, process_data))
-                asyncio.create_task(self.ws_manager.send_events(users, process_data))
-                # print(f"Event created")
-
-    async def create_event(self, device, type):
-        # Buscar usuarios asociados al dispositivo
-        ud_controller = UserDevicesController()
-        users = ud_controller.get_users(device["id"])
-        sos_data = {
-            "deviceid": device["id"],
-            "name": device["name"],
-            "uniqueid": device["uniqueid"],
-            "type": type,
-            "eventtime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "latitude": device["latitude"],
-            "longitude": device["longitude"],
+def _build_notification_payload(
+    token_value: str,
+    event_type: str,
+    device_name: str,
+    device_id: int,
+    geofence_name: str = None,
+):
+    base_template = NOTIFICATION_TEMPLATES.get("default", {}).copy()
+    event_specific_template = NOTIFICATION_TEMPLATES.get(event_type, {}).copy()
+    notification_data = {**base_template, **event_specific_template}
+    if "android" in base_template and "android" in event_specific_template:
+        notification_data["android"] = {
+            **base_template["android"],
+            **event_specific_template["android"],
         }
-
-        asyncio.create_task(send_notificacion(users, sos_data))
-        asyncio.create_task(self.ws_manager.send_events(users, sos_data))
-        # print("SOS event created")
-
-
-async def send_push_notification(token, event):
-    # URL de la API de Expo para enviar notificaciones
-    url = "https://exp.host/--/api/v2/push/send"
-    # Encabezados de la solicitud
-    headers = {
-        "Accept": "application/json",
-        "Accept-Encoding": "gzip, deflate",
-        "Content-Type": "application/json",
+    if "ios" in base_template and "ios" in event_specific_template:
+        notification_data["ios"] = {
+            **base_template["ios"],
+            **event_specific_template["ios"],
+        }
+    body_messages = {
+        "alarm": f"Movimiento inusual en su vehiculo {device_name}",
+        "sos": f"Se ha activado una alerta de SOS en su vehículo {device_name}",
+        "ignitionOn": f"Encendido del vehiculo {device_name}",
+        "ignitionOff": f"Apagado del vehiculo {device_name}",
+        "powerCut": f"Corte de energía en su vehiculo {device_name}",
+        "deviceOffline": f"El vehiculo {device_name} se encuentra desconectado",
+        "deviceOverspeed": f"El vehiculo {device_name} ha excedido la velocidad permitida",
+        "geofenceEnter": f"El vehiculo {device_name} ha ingresado a la geocerca {geofence_name or 'desconocida'}",
+        "geofenceExit": f"El vehiculo {device_name} ha salido de la geocerca {geofence_name or 'desconocida'}",
+        "lowBattery": f"Batería baja en el vehículo {device_name}",
     }
-    # Datos de la notificación
-
-    if event["type"] == "alarm":
-        data = {
-            "to": token["token"],
-            "sound": "alarmanoti.wav",
-            "title": "¡Alerta!",
-            "body": f"Movimiento inusual en su vehiculo {event['name']}",
-            "data": {
-                "vehicleId": event["deviceid"],
-                "screen": "Maps",
-            },
-            "channelId": "alarm-channel",
-            "android": {
-                "channelId": "alarm-channel",
-                "vibrationPattern": [0, 250, 250, 250],
-                "lightColor": "#FF231F7C",
-            },
-            "ios": {
-                "sound": "alarmanoti.wav",
-            },
-        }
-    elif event["type"] == "sos":
-        data = {
-            "to": token["token"],
-            "sound": "sirena.wav",
-            "title": "¡ALERTA DE SOS!",
-            "body": f"Se ha activado una alerta de SOS en su vehículo {event['name']}",
-            "data": {
-                "vehicleId": event["deviceid"],
-                "screen": "Maps",
-            },
-            "channelId": "sos-channel",
-            "android": {
-                "channelId": "sos-channel",
-                "vibrationPattern": [0, 250, 250, 250],
-                "lightColor": "#FF231F7C",
-            },
-            "ios": {
-                "sound": "sirena.wav",
-            },
-        }
-    elif event["type"] == "ignitionOn":
-        data = {
-            "to": token["token"],
-            "sound": "generico.wav",
-            "title": "¡Alerta!",
-            "body": f"Encendido del vehiculo {event['name']}",
-            "data": {
-                "vehicleId": event["deviceid"],
-                "screen": "Maps",
-            },
-            "channelId": "default-channel",
-            "android": {
-                "channelId": "default-channel",
-                "vibrationPattern": [0, 250, 250, 250],
-                "lightColor": "#FF231F7C",
-            },
-            "ios": {
-                "sound": "generico.wav",
-            },
-        }
-    elif event["type"] == "ignitionOff":
-        data = {
-            "to": token["token"],
-            "sound": "generico.wav",
-            "title": "¡Alerta!",
-            "body": f"Apagado del vehiculo {event['name']}",
-            "data": {
-                "vehicleId": event["deviceid"],
-                "screen": "Maps",
-            },
-            "channelId": "default-channel",
-            "android": {
-                "channelId": "default-channel",
-                "vibrationPattern": [0, 250, 250, 250],
-                "lightColor": "#FF231F7C",
-            },
-            "ios": {
-                "sound": "generico.wav",
-            },
-        }
-    elif event["type"] == "powerCut":
-        data = {
-            "to": token["token"],
-            "sound": "generico.wav",
-            "title": "¡Alerta!",
-            "body": f"Corte de energía en su vehiculo {event['name']}",
-            "data": {
-                "vehicleId": event["deviceid"],
-                "screen": "Maps",
-            },
-            "channelId": "default-channel",
-            "android": {
-                "channelId": "default-channel",
-                "vibrationPattern": [0, 250, 250, 250],
-                "lightColor": "#FF231F7C",
-            },
-            "ios": {
-                "sound": "generico.wav",
-            },
-        }
-    elif event["type"] == "deviceOffline":
-        data = {
-            "to": token["token"],
-            "sound": "generico.wav",
-            "title": "¡Alerta!",
-            "body": f"El vehiculo {event['name']} se encuentra desconectado",
-            "data": {
-                "vehicleId": event["deviceid"],
-                "screen": "Maps",
-            },
-            "channelId": "default-channel",
-            "android": {
-                "channelId": "default-channel",
-                "vibrationPattern": [0, 250, 250, 250],
-                "lightColor": "#FF231F7C",
-            },
-            "ios": {
-                "sound": "generico.wav",
-            },
-        }
-    elif event["type"] == "deviceOverspeed":
-        data = {
-            "to": token["token"],
-            "sound": "generico.wav",
-            "title": "¡Alerta!",
-            "body": f"El vehiculo {event['name']} ha excedido la velocidad permitida",
-            "data": {
-                "vehicleId": event["deviceid"],
-                "screen": "Maps",
-            },
-            "channelId": "default-channel",
-            "android": {
-                "channelId": "default-channel",
-                "vibrationPattern": [0, 250, 250, 250],
-                "lightColor": "#FF231F7C",
-            },
-            "ios": {
-                "sound": "generico.wav",
-            },
-        }
-    elif event["type"] == "geofenceEnter":
-        data = {
-            "to": token["token"],
-            "sound": "generico.wav",
-            "title": "¡Alerta!",
-            "body": f"El vehiculo {event['name']} ha ingresado a la geocerca {event['geofencename']}",
-            "data": {
-                "vehicleId": event["deviceid"],
-                "screen": "Maps",
-            },
-            "channelId": "default-channel",
-            "android": {
-                "channelId": "default-channel",
-                "vibrationPattern": [0, 250, 250, 250],
-                "lightColor": "#FF231F7C",
-            },
-            "ios": {
-                "sound": "generico.wav",
-            },
-        }
-    elif event["type"] == "geofenceExit":
-        data = {
-            "to": token["token"],
-            "sound": "generico.wav",
-            "title": "¡Alerta!",
-            "body": f"El vehiculo {event['name']} ha salido de la geocerca {event['geofencename']}",
-            "data": {
-                "vehicleId": event["deviceid"],
-                "screen": "Maps",
-            },
-            "channelId": "default-channel",
-            "android": {
-                "channelId": "default-channel",
-                "vibrationPattern": [0, 250, 250, 250],
-                "lightColor": "#FF231F7C",
-            },
-            "ios": {
-                "sound": "generico.wav",
-            },
-        }
-    else:
-        data = None
-
-    if data is not None:
-        # Realiza la solicitud POST
-        try:
-            print(
-                f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Enviar notificacion a token {token['token']}"
-            )
-            response = requests.post(url, headers=headers, data=json.dumps(data))
-            # Muestra el estado de la respuesta
-            print(
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                {"status": response.status_code, "message": response.json()},
-            )
-
-        except requests.exceptions.RequestException as e:
-            print(f"Ocurrió un error al realizar la solicitud: {e}")
-
-
-async def get_tokens_and_send_notification(userid, event):
-    try:
-        # buscar tokens por cada usuario
-        url = f"{API_URL_ADMIN_NWPERU}pushtokenuser?traccar_id={userid}&type={event['type']}"
-        response = requests.get(url)
-        if response.status_code == 200:
-            tokens = response.json()
-            print(
-                f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Enviar notificacion a {len(tokens)} tokens de usuario {userid}"
-            )
-            for token in tokens:
-                # enviar notificacion a cada token
-                asyncio.create_task(send_push_notification(token, event))
-    except Exception as e:
-        print(f"Error al enviar notificacion: {e}")
-
-
-async def send_notificacion(users, event):
-    print(
-        f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Enviar notificacion a {len(users)} usuarios"
+    notification_data["to"] = token_value
+    notification_data["body"] = body_messages.get(
+        event_type, f"Evento {event_type} en {device_name}"
     )
-    for user in users:
-        asyncio.create_task(get_tokens_and_send_notification(user["userid"], event))
+    notification_data["data"] = {"vehicleId": device_id, "screen": "Maps"}
+    if event_type not in body_messages and event_type not in NOTIFICATION_TEMPLATES:
+        return None
+    return notification_data
+
+
+class EventNotifierService:
+    def __init__(self, ws_manager: WebSocketManager):
+        self.ws_manager = ws_manager
+        self._http_session: aiohttp.ClientSession | None = None
+        self._session_lock = asyncio.Lock()  # Para creación segura de sesión
+        logger.info("EventNotifierService instanciado.")
+
+    async def _get_http_session(self) -> aiohttp.ClientSession:
+        async with self._session_lock:  # Asegurar creación atómica
+            if self._http_session is None or self._http_session.closed:
+                self._http_session = aiohttp.ClientSession()
+                logger.info("EventNotifierService: Nueva aiohttp.ClientSession creada.")
+        return self._http_session
+
+    async def close_http_session(self):
+        async with self._session_lock:
+            if self._http_session and not self._http_session.closed:
+                await self._http_session.close()
+                logger.info("EventNotifierService: aiohttp.ClientSession cerrada.")
+            self._http_session = None  # Marcar como cerrada
+
+    async def _send_expo_push(self, expo_token: str, payload: dict):
+        session = await self._get_http_session()
+        if not session:
+            logger.error("No se pudo obtener sesión HTTP para PUSH.")
+            return
+        expo_url = "https://exp.host/--/api/v2/push/send"
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Accept-Encoding": "gzip, deflate",
+        }
+        try:
+            async with session.post(
+                expo_url, headers=headers, json=payload, timeout=10
+            ) as response:  # Timeout de 10s
+                response_text = (
+                    await response.text()
+                )  # Leer siempre para liberar conexión
+                if 200 <= response.status < 300:
+                    # logger.debug(f"PUSH a {expo_token} OK (Status {response.status})")
+                    pass
+                else:
+                    logger.error(
+                        f"Error PUSH a Expo {expo_token} (Status {response.status}): {response_text[:500]}"
+                    )
+        except asyncio.TimeoutError:
+            logger.error(f"Timeout enviando PUSH a Expo {expo_token}")
+        except aiohttp.ClientError as e:  # Errores de conexión, etc.
+            logger.error(
+                f"ClientError PUSH a Expo ({expo_token}): {e}", exc_info=False
+            )  # exc_info=False para no ser tan verboso
+        except Exception as e:  # Otros errores inesperados
+            logger.error(
+                f"Error inesperado PUSH a Expo ({expo_token}): {e}", exc_info=True
+            )
+
+    async def _fetch_user_tokens_for_event(
+        self, user_id: int, event_type: str
+    ) -> list[str]:
+        session = await self._get_http_session()
+        if not session:
+            logger.error("No se pudo obtener sesión HTTP para fetch_tokens.")
+            return []
+        url = f"{API_URL_ADMIN_NWPERU}pushtokenuser?traccar_id={user_id}&type={event_type}"
+        tokens_values = []
+        try:
+            async with session.get(url, timeout=10) as response:  # Timeout de 10s
+                if response.status == 200:
+                    tokens_data = await response.json()
+                    tokens_values = [
+                        item.get("token") for item in tokens_data if item.get("token")
+                    ]
+                else:
+                    logger.error(
+                        f"Error obteniendo tokens PUSH para user {user_id}, event {event_type} (Status {response.status}): {await response.text()}"
+                    )
+        except asyncio.TimeoutError:
+            logger.error(
+                f"Timeout obteniendo tokens PUSH para user {user_id}, event {event_type}"
+            )
+        except aiohttp.ClientError as e:
+            logger.error(
+                f"ClientError obteniendo tokens PUSH (user {user_id}): {e}",
+                exc_info=False,
+            )
+        except Exception as e:
+            logger.error(
+                f"Excepción obteniendo tokens PUSH (user {user_id}): {e}", exc_info=True
+            )
+        return tokens_values
+
+    async def _notify_single_user(
+        self, user_id: int, event_data_for_notification: dict
+    ):
+        event_type = event_data_for_notification.get("type")
+        if not event_type:
+            return
+
+        push_tokens = await self._fetch_user_tokens_for_event(user_id, event_type)
+        if not push_tokens:
+            return
+
+        push_tasks = []
+        for token_val in push_tokens:
+            payload = _build_notification_payload(
+                token_val,
+                event_type,
+                event_data_for_notification.get("name", "N/A"),
+                event_data_for_notification.get("deviceid", 0),
+                event_data_for_notification.get("geofencename"),
+            )
+            if payload:
+                push_tasks.append(self._send_expo_push(token_val, payload))
+        if push_tasks:
+            await asyncio.gather(*push_tasks, return_exceptions=True)
+
+    async def notify_event_to_users(self, users_info_list: list, event_payload: dict):
+        if not users_info_list or not event_payload:
+            return
+        # logger.debug(f"Notificando evento {event_payload.get('type')} a {len(users_info_list)} usuarios.")
+        push_notify_tasks = [
+            self._notify_single_user(user_info["userid"], event_payload)
+            for user_info in users_info_list
+            if user_info.get("userid")
+        ]
+        ws_payload_wrapper = {"event": event_payload}
+        ws_notify_tasks = [
+            self.ws_manager.send_to_all_clients_by_userid(
+                user_info["userid"], ws_payload_wrapper
+            )
+            for user_info in users_info_list
+            if user_info.get("userid")
+        ]
+        await asyncio.gather(
+            *push_notify_tasks, *ws_notify_tasks, return_exceptions=True
+        )
+
+    async def process_event_from_device(self, parsed_device_event: dict):
+        imei = parsed_device_event.get("imei")
+        event_type = parsed_device_event.get("event_type")
+        if not imei or not event_type:
+            return
+
+        device_in_cache = self.ws_manager.get_device_by_uniqueid(str(imei))
+        if not device_in_cache:
+            logger.warning(
+                f"No se encontró dispositivo para IMEI {imei} al procesar evento TCP '{event_type}'."
+            )
+            # Podría ser un dispositivo nuevo que aún no se ha refrescado en el caché global.
+            # PositionUpdater se encarga de refrescar el caché si el IMEI es nuevo para una posición.
+            # Para un evento, si el dispositivo no está, usualmente no se puede hacer mucho más.
+            return
+
+        final_event_payload = {
+            "deviceid": device_in_cache["id"],
+            "name": device_in_cache.get("name", "Desconocido"),
+            "uniqueid": imei,
+            "type": event_type,
+            "eventtime": parsed_device_event.get(
+                "datetime", datetime.now().isoformat()
+            ),
+            "latitude": parsed_device_event.get(
+                "latitude", device_in_cache.get("latitude")
+            ),
+            "longitude": parsed_device_event.get(
+                "longitude", device_in_cache.get("longitude")
+            ),
+        }
+        if "geofencename" in parsed_device_event:
+            final_event_payload["geofencename"] = parsed_device_event["geofencename"]
+
+        # Usar instancia local de UserDevicesController para esta operación
+        ud_controller_local = UserDevicesController()
+        try:
+            associated_users = await asyncio.to_thread(
+                ud_controller_local.get_users, device_in_cache["id"]
+            )
+        except Exception as e:
+            logger.error(
+                f"Error obteniendo usuarios para device_id {device_in_cache['id']} (evento {event_type}): {e}",
+                exc_info=True,
+            )
+            return
+        finally:
+            await asyncio.to_thread(ud_controller_local.close)  # Cerrar conexión local
+
+        if associated_users:
+            await self.notify_event_to_users(associated_users, final_event_payload)
+
+    async def create_and_notify_custom_event(
+        self, device_info: dict, event_type: str, additional_data: dict = None
+    ):
+        if not device_info or not device_info.get("id"):
+            return
+
+        event_payload = {
+            "deviceid": device_info["id"],
+            "name": device_info.get("name", "Desconocido"),
+            "uniqueid": device_info.get("uniqueid"),
+            "type": event_type,
+            "eventtime": datetime.now().isoformat(),
+            "latitude": device_info.get("latitude"),
+            "longitude": device_info.get("longitude"),
+        }
+        if additional_data:
+            event_payload.update(additional_data)
+
+        ud_controller_local = UserDevicesController()
+        try:
+            associated_users = await asyncio.to_thread(
+                ud_controller_local.get_users, device_info["id"]
+            )
+        except Exception as e:
+            logger.error(
+                f"Error obteniendo usuarios para evento custom '{event_type}', device_id {device_info['id']}: {e}",
+                exc_info=True,
+            )
+            return
+        finally:
+            await asyncio.to_thread(ud_controller_local.close)
+
+        if associated_users:
+            await self.notify_event_to_users(associated_users, event_payload)

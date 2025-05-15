@@ -1,344 +1,454 @@
 import asyncio
+import logging
+from datetime import datetime, timedelta
+import uuid
+import json
 from aiohttp import web
+
 from src.ws.ws_manager import WebSocketManager
-from src.utils.common import login
+from src.utils.common import login, send_message_whatsapp
 from src.controllers.user_devices_controller import UserDevicesController
 from src.controllers.devices_controller import DevicesController
-from src.tcp.sender.events import Events
-from datetime import datetime, timedelta
-from src.utils.common import send_message_whatsapp
-import uuid
+from src.tcp.sender.events import EventNotifierService
+
+logger = logging.getLogger(__name__)
 
 
 class WebSocketServer:
     def __init__(self, host="0.0.0.0", port=7006):
         self.host = host
         self.port = port
-        self.ws_manager = WebSocketManager()
-        self.periodic_tasks = {}
-        self.guest_tokens = {}
+        self.ws_manager = WebSocketManager()  # Singleton
+        self.periodic_tasks_per_user = {}
+        self.periodic_ud_controllers = (
+            {}
+        )  # Almacena UserDevicesController por user_id para tareas periódicas
+        self.periodic_tasks_per_guest_token = {}
+        self.guest_tokens_active = {}
+        self.app_runner = None
+        self.event_notifier = EventNotifierService(self.ws_manager)
+        logger.info("WebSocketServer instanciado.")
 
     async def websocket_handler(self, request):
-        # Extraer parámetros de la URL
-        username = request.query.get("u")  # Sin valor por defecto
-        password = request.query.get("p")  # Sin valor por defecto
-
-        # Verificar si se proporcionaron username y password
+        username = request.query.get("u")
+        password = request.query.get("p")
         if not username or not password:
-            # print("Connection attempt without credentials")
-            return web.HTTPForbidden(reason="Authentication required")
+            logger.warning("Conexión WS: Sin credenciales.")
+            return web.HTTPForbidden(reason="Auth required")
 
-        auth = login(username, password)
-        if not auth:
-            # print("Authentication failed")
-            return web.HTTPForbidden(reason="Authentication failed")
+        auth_result = await asyncio.to_thread(login, username, password)
+        if not auth_result:
+            logger.warning(f"Conexión WS: Auth fallida para {username}.")
+            return web.HTTPForbidden(reason="Auth failed")
 
-        # Obtener dispositivos del usuario conectado
-        user_id = auth["id"]
-        ud_controller = UserDevicesController()
-        user_devices = await asyncio.to_thread(ud_controller.get_devices, user_id)
-        # Crear un conjunto de deviceid para búsqueda rápida
-        device_ids = {item["deviceid"] for item in user_devices}
-        # Filtrar vehículos solo del usuario conectado
-        devices = [obj for obj in self.ws_manager.devices if obj["id"] in device_ids]
-        # print(f"New WebSocket client connected - Username: {username}")
+        user_id = auth_result["id"]
 
+        # Usar un UserDevicesController local para la carga inicial
+        initial_load_udc = UserDevicesController()
+        try:
+            user_device_assignments = await asyncio.to_thread(
+                initial_load_udc.get_devices, user_id
+            )
+        except Exception as e:
+            logger.error(
+                f"Error obteniendo dispositivos para user {user_id} (conexión inicial): {e}",
+                exc_info=True,
+            )
+            return web.HTTPInternalServerError(reason="Error retrieving user devices")
+        finally:
+            await asyncio.to_thread(initial_load_udc.close)  # Cerrar UDC local
+
+        device_ids_assigned_to_user = {
+            item["deviceid"] for item in user_device_assignments or []
+        }
+        all_cached_devices = (
+            self.ws_manager.get_all_devices()
+        )  # Usa self.ws_manager.devices
+        devices_for_this_client = [
+            dev
+            for dev in all_cached_devices
+            if dev.get("id") in device_ids_assigned_to_user
+        ]
+
+        logger.info(f"Cliente WebSocket conectado: {username} (ID: {user_id})")
         ws = web.WebSocketResponse()
-        await ws.prepare(request)  # Preparar el WebSocket antes de registrarlo
+        await ws.prepare(request)
         await self.ws_manager.register(ws, username, password, user_id)
+        await self.ws_manager.send_to_client(ws, {"devices": devices_for_this_client})
 
-        # Enviar dispositivos al cliente
-        await self.ws_manager.send_to_client(ws, {"devices": devices})
+        if user_id not in self.periodic_tasks_per_user:
+            if user_id not in self.periodic_ud_controllers:
+                # Crear y almacenar UDC si no existe para esta tarea periódica de usuario
+                self.periodic_ud_controllers[user_id] = UserDevicesController()
+                logger.debug(
+                    f"Nueva instancia de UserDevicesController creada para tarea periódica del user {user_id}"
+                )
 
-        # Iniciar la tarea en segundo plano para enviar dispositivos cada 5 segundos
-        if user_id not in self.periodic_tasks:
-            self.periodic_tasks[user_id] = asyncio.create_task(
-                self.send_devices_periodically(user_id)
+            udc_for_task = self.periodic_ud_controllers[
+                user_id
+            ]  # Usar la instancia almacenada
+            self.periodic_tasks_per_user[user_id] = asyncio.create_task(
+                self._send_devices_periodically_to_user(user_id, udc_for_task)
             )
 
+        client_description = f"{username} (User ID: {user_id})"
         try:
             async for msg in ws:
                 if msg.type == web.WSMsgType.TEXT:
-                    print(f"Message received from {username}: {msg.data}")
+                    logger.info(f"Mensaje de {client_description}: {msg.data}")
                 elif msg.type == web.WSMsgType.ERROR:
-                    print(f"Error in WebSocket: {ws.exception()}")
+                    logger.error(
+                        f"Error en WS para {client_description}: {ws.exception()}",
+                        exc_info=True,
+                    )
+        except asyncio.CancelledError:
+            logger.info(f"Conexión WS para {client_description} cancelada.")
         except Exception as e:
-            print(f"Exception in WebSocket handler: {e}")
+            logger.info(
+                f"Excepción/Desconexión en WS para {client_description}: {type(e).__name__} - {e}"
+            )
         finally:
-            await self.ws_manager.unregister(ws)
-            # Si no hay más conexiones para este usuario, cancelar la tarea periódica
-            if not any(
-                client_info["userid"] == user_id
-                for client_info in self.ws_manager.clients.values()
-            ):
-                self.periodic_tasks[user_id].cancel()
-                del self.periodic_tasks[user_id]
+            unregistered_info = await self.ws_manager.unregister(ws)
+            if unregistered_info:
+                logger.info(
+                    f"Cliente desconectado: {unregistered_info.get('username')}"
+                )
 
+            if user_id:
+                is_last_client_for_user = not any(
+                    c_info.get("userid") == user_id
+                    for c_info in self.ws_manager.clients.values()
+                )
+                if is_last_client_for_user and user_id in self.periodic_tasks_per_user:
+                    task_to_cancel = self.periodic_tasks_per_user.pop(user_id)
+                    task_to_cancel.cancel()
+                    try:
+                        await task_to_cancel
+                    except asyncio.CancelledError:
+                        pass  # Esperado
+
+                    if user_id in self.periodic_ud_controllers:
+                        udc_to_close = self.periodic_ud_controllers.pop(user_id)
+                        logger.info(
+                            f"Cerrando UserDevicesController de tarea periódica para user {user_id}."
+                        )
+                        await asyncio.to_thread(udc_to_close.close)
+                    logger.info(
+                        f"Tarea periódica y UDC asociado detenidos para user_id: {user_id}"
+                    )
         return ws
 
     async def guest_websocket_handler(self, request):
         token = request.query.get("t")
-
-        if not token or token not in self.guest_tokens:
-            # print("Invalid or expired token")
+        if not token or token not in self.guest_tokens_active:
             return web.HTTPForbidden(reason="Invalid or expired token")
-
-        guest_info = self.guest_tokens[token]
-        if guest_info["expires_at"] < datetime.now():
-            # print("Token has expired")
+        guest_token_details = self.guest_tokens_active[token]
+        if guest_token_details["expires_at"] < datetime.now():
+            if token in self.guest_tokens_active:
+                del self.guest_tokens_active[token]
             return web.HTTPForbidden(reason="Token has expired")
-
-        device_id = guest_info["deviceid"]
-        devices = [
-            obj for obj in self.ws_manager.devices if str(obj["id"]) == str(device_id)
-        ]
-        # print(f"New Guest WebSocket client connected - Token: {token}")
-
+        device_id_for_guest = guest_token_details["deviceid"]
+        device_for_guest_payload = []
+        found_device_obj = self.ws_manager.get_device_by_id(int(device_id_for_guest))
+        if found_device_obj:
+            device_for_guest_payload.append(found_device_obj)
+        logger.info(
+            f"Cliente WS invitado conectado: Token {token} para DevID {device_id_for_guest}"
+        )
         ws = web.WebSocketResponse()
         await ws.prepare(request)
         await self.ws_manager.register_guest(ws, token)
-
-        await self.ws_manager.send_to_client(ws, {"devices": devices})
-
-        if token not in self.periodic_tasks:
-            self.periodic_tasks[token] = asyncio.create_task(
-                self.send_device_periodically_to_guest(token, device_id)
+        await self.ws_manager.send_to_client(ws, {"devices": device_for_guest_payload})
+        if token not in self.periodic_tasks_per_guest_token:
+            self.periodic_tasks_per_guest_token[token] = asyncio.create_task(
+                self._send_device_periodically_to_guest(token, device_id_for_guest)
             )
-
+        guest_description = f"Invitado (Token: {token})"
         try:
             async for msg in ws:
                 if msg.type == web.WSMsgType.TEXT:
-                    print(f"Message received from guest {token}: {msg.data}")
+                    logger.info(f"Mensaje de {guest_description}: {msg.data}")
                 elif msg.type == web.WSMsgType.ERROR:
-                    print(f"Error in Guest WebSocket: {ws.exception()}")
+                    logger.error(
+                        f"Error en WS para {guest_description}: {ws.exception()}",
+                        exc_info=True,
+                    )
+        except asyncio.CancelledError:
+            logger.info(f"Conexión WS para {guest_description} cancelada.")
         except Exception as e:
-            print(f"Exception in Guest WebSocket handler: {e}")
+            logger.info(
+                f"Excepción/Desconexión en WS para {guest_description}: {type(e).__name__} - {e}"
+            )
         finally:
-            await self.ws_manager.unregister_guest(ws)
+            unregistered_guest = await self.ws_manager.unregister_guest(ws)
+            if unregistered_guest:
+                logger.info(f"Invitado desconectado: {unregistered_guest.get('token')}")
             if not any(
-                guest_info["token"] == token
-                for guest_info in self.ws_manager.guest_clients.values()
+                g_info.get("token") == token
+                for g_info in self.ws_manager.guest_clients.values()
             ):
-                self.periodic_tasks[token].cancel()
-                del self.periodic_tasks[token]
-
+                if token in self.periodic_tasks_per_guest_token:
+                    task_to_cancel = self.periodic_tasks_per_guest_token.pop(token)
+                    task_to_cancel.cancel()
+                    await asyncio.sleep(0)  # Permitir que la cancelación se propague
+                    try:
+                        await task_to_cancel
+                    except asyncio.CancelledError:
+                        pass
+                    logger.info(
+                        f"Tarea periódica detenida para token invitado: {token}"
+                    )
         return ws
 
     async def http_handler(self, request):
         method = request.method
         path = request.path
-
         if path == "/api/sos" and method == "POST":
-            return await self.handle_sos_request(request)
-        elif path == "/api/update-devices" and method == "GET":
-            asyncio.create_task(self.save_devices_init())
-            return web.Response(text="Vehiculos actualizados correctamente", status=200)
-        elif path == "/api/share" and method == "POST":
-            return await self.handle_share_request(request)
+            return await self._handle_sos_request(request)
+        if path == "/api/update-devices" and method == "GET":
+            asyncio.create_task(self._load_initial_devices_cache())
+            return web.Response(text="Actualización iniciada.", status=202)
+        if path == "/api/share" and method == "POST":
+            return await self._handle_share_request(request)
+        return web.HTTPNotFound(reason="Ruta no encontrada")
 
-        return web.HTTPNotFound(reason="Ruta no encontrada", status=404)
-
-    async def send_devices_periodically(self, user_id):
-        ud_controller = UserDevicesController()
-        while True:
-            user_devices_task = asyncio.create_task(
-                asyncio.to_thread(ud_controller.get_devices, user_id)
-            )
-            await asyncio.sleep(5)
-            user_devices = await user_devices_task
-            device_ids = {item["deviceid"] for item in user_devices}
-            devices = [
-                obj for obj in self.ws_manager.devices if obj["id"] in device_ids
-            ]
-            await self.ws_manager.send_to_all_clients(user_id, {"devices": devices})
-
-    async def send_device_periodically_to_guest(self, token, device_id):
-        while True:
-            await asyncio.sleep(5)
-            devices = [
-                obj
-                for obj in self.ws_manager.devices
-                if str(obj["id"]) == str(device_id)
-            ]
-            await self.ws_manager.send_to_all_guest_clients(token, {"devices": devices})
-
-    async def save_devices_init(self):
-        device_controller = DevicesController()
-        devices = device_controller.get_devices()
-        await self.ws_manager.save_devices(devices)
-
-    async def handle_sos_request(self, request):
-        data = await request.json()
-        device_id = data.get("deviceid")
-
-        if not device_id:
-            return web.HTTPBadRequest(
-                reason="Falta el deviceid en la solicitud", status=400
-            )
-
-        found_device = next(
-            (
-                device
-                for device in self.ws_manager.devices
-                if str(device["id"]) == str(device_id)
-            ),
-            None,
-        )
-        if not found_device:
-            return web.HTTPNotFound(reason="Vehiculo no encontrado", status=404)
-
-        e = Events()
-        asyncio.create_task(e.create_event(found_device, "sos"))
-
-        return web.Response(text="Evento SOS creado correctamente", status=200)
-
-    async def handle_share_request(self, request):
-        data = await request.json()
-        device_id = data.get("deviceid")
-        expires_at = data.get("expires_at")
-        username = data.get("usuario")
-        password = data.get("contraseña")
-
-        if not device_id or not expires_at or not username or not password:
-            return web.HTTPBadRequest(reason="Faltan campos requeridos", status=400)
-
+    async def _send_devices_periodically_to_user(
+        self, user_id: int, ud_controller: UserDevicesController
+    ):
+        """Envía periódicamente la lista de dispositivos a un usuario, usando el ud_controller provisto."""
+        logger.info(f"Iniciando tarea periódica de envío para user {user_id}.")
         try:
-            expires_at = datetime.strptime(expires_at, "%Y-%m-%d %H:%M:%S")
+            while True:
+                # 1. INICIAR la tarea de obtener los dispositivos asignados al usuario desde la BD
+                user_device_assignments_task = asyncio.create_task(
+                    asyncio.to_thread(ud_controller.get_devices, user_id)
+                )
+                # 2. ESPERAR 5 segundos
+                await asyncio.sleep(5)
+                # 3. OBTENER el resultado de la tarea de BD.
+                user_device_assignments = await user_device_assignments_task
+                # El print "VEHIUCLOSSSSS..." está dentro de ud_controller.get_devices
+
+                if user_device_assignments is None:
+                    logger.warning(
+                        f"No se pudieron obtener dispositivos para user {user_id} en tarea periódica. Reintentando en 30s."
+                    )
+                    await asyncio.sleep(
+                        25
+                    )  # sleep adicional de 25s + 5s del inicio del bucle = 30s
+                    continue
+
+                device_ids_assigned_to_user = {
+                    item["deviceid"] for item in user_device_assignments
+                }
+                all_cached_devices = (
+                    self.ws_manager.get_all_devices()
+                )  # self.ws_manager.devices
+                devices_for_this_client = [
+                    dev
+                    for dev in all_cached_devices
+                    if dev.get("id") in device_ids_assigned_to_user
+                ]
+
+                await self.ws_manager.send_to_all_clients_by_userid(
+                    user_id, {"devices": devices_for_this_client}
+                )
+        except asyncio.CancelledError:
+            logger.info(f"Tarea periódica de envío para user {user_id} cancelada.")
+            # El cierre del ud_controller se maneja en websocket_handler
+        except Exception as e:
+            logger.error(
+                f"Error crítico en _send_devices_periodically_to_user para user {user_id}: {e}",
+                exc_info=True,
+            )
+            # La tarea podría continuar. Si la conexión a BD en ud_controller se pierde permanentemente,
+            # get_devices podría seguir fallando. El ud_controller solo se recrea si todos los clientes
+            # de este usuario se desconectan y luego uno nuevo se conecta.
+
+    async def _send_device_periodically_to_guest(self, token: str, device_id: int):
+        try:
+            target_device_id_int = int(device_id)
+        except (ValueError, TypeError):
+            logger.error(f"DeviceID inválido '{device_id}' para token {token}")
+            return
+        logger.info(
+            f"Iniciando tarea periódica envío invitado (token: {token}, deviceID: {device_id})"
+        )
+        try:
+            while True:
+                await asyncio.sleep(5)
+                dev_payload = []
+                found_dev = self.ws_manager.get_device_by_id(target_device_id_int)
+                if found_dev:
+                    dev_payload.append(found_dev)
+                await self.ws_manager.send_to_all_guest_clients_by_token(
+                    token, {"devices": dev_payload}
+                )
+        except asyncio.CancelledError:
+            logger.info(f"Tarea periódica envío invitado (token {token}) cancelada.")
+        except Exception as e:
+            logger.error(
+                f"Error en _send_device_periodically_to_guest ({token}): {e}",
+                exc_info=True,
+            )
+
+    async def _load_initial_devices_cache(self):
+        local_dc = DevicesController()
+        try:
+            all_devices = await asyncio.to_thread(local_dc.get_devices)
+            await self.ws_manager.save_devices(all_devices)
+            logger.info(
+                f"Caché de dispositivos (re)cargado con {len(all_devices)} dispositivos."
+            )
+        except Exception as e:
+            logger.error(f"Error cargando caché de dispositivos: {e}", exc_info=True)
+        finally:
+            if hasattr(local_dc, "close") and callable(getattr(local_dc, "close")):
+                await asyncio.to_thread(local_dc.close)
+
+    async def _handle_sos_request(self, request):
+        try:
+            data = await request.json()
+        except json.JSONDecodeError:
+            return web.HTTPBadRequest(reason="JSON inválido.")
+        dev_id_str = data.get("deviceid")
+        if not dev_id_str:
+            return web.HTTPBadRequest(reason="Falta deviceid")
+        try:
+            dev_id = int(dev_id_str)
         except ValueError:
-            return web.HTTPBadRequest(reason="Formato de fecha incorrecto", status=400)
+            return web.HTTPBadRequest(reason="deviceid debe ser entero.")
+        found_device = self.ws_manager.get_device_by_id(dev_id)
+        if not found_device:
+            return web.HTTPNotFound(reason="Vehículo no encontrado")
+        asyncio.create_task(
+            self.event_notifier.create_and_notify_custom_event(found_device, "sos")
+        )
+        return web.Response(text="Evento SOS creado", status=200)
 
-        auth = login(username, password)
+    async def _handle_share_request(self, request):
+        try:
+            data = await request.json()
+        except json.JSONDecodeError:
+            return web.HTTPBadRequest(reason="JSON inválido.")
+        dev_id_str = data.get("deviceid")
+        exp_at_str = data.get("expires_at")
+        uname = data.get("usuario")
+        pwd = data.get("contraseña")
+        if not all([dev_id_str, exp_at_str, uname, pwd]):
+            return web.HTTPBadRequest(reason="Faltan campos")
+        try:
+            dev_id = int(dev_id_str)
+            exp_dt = datetime.strptime(exp_at_str, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return web.HTTPBadRequest(reason="Formato deviceid/fecha incorrecto")
+        auth = await asyncio.to_thread(login, uname, pwd)
         if not auth:
-            return web.HTTPForbidden(reason="Authentication failed")
-
-        user_id = auth["id"]
-        ud_controller = UserDevicesController()
-        user_devices = await asyncio.to_thread(ud_controller.get_devices, user_id)
-        device_ids = {item["deviceid"] for item in user_devices}
-
-        if int(device_id) not in device_ids:
-            return web.HTTPForbidden(reason="Device not found for the user")
-
+            return web.HTTPForbidden(reason="Autenticación fallida")
+        uid = auth["id"]
+        local_udc = UserDevicesController()
+        try:
+            user_devs = await asyncio.to_thread(local_udc.get_devices, uid)
+        finally:
+            await asyncio.to_thread(local_udc.close)
+        user_dev_ids = {item["deviceid"] for item in user_devs or []}
+        if dev_id not in user_dev_ids:
+            return web.HTTPForbidden(reason="Dispositivo no autorizado")
         token = str(uuid.uuid4())
-        self.guest_tokens[token] = {"deviceid": device_id, "expires_at": expires_at}
-
-        asyncio.create_task(self.remove_expired_guest(token, expires_at))
-
+        self.guest_tokens_active[token] = {"deviceid": dev_id, "expires_at": exp_dt}
+        asyncio.create_task(self._schedule_guest_token_removal(token, exp_dt))
         return web.json_response({"token": token})
 
-    async def remove_expired_guest(self, token, expires_at):
-        await asyncio.sleep((expires_at - datetime.now()).total_seconds())
-        if token in self.guest_tokens:
-            del self.guest_tokens[token]
-            # print(f"Guest token {token} has expired and been removed.")
-            # Desconectar a todos los clientes invitados con este token
-            for websocket, guest_info in list(self.ws_manager.guest_clients.items()):
-                if guest_info["token"] == token:
-                    await websocket.close(code=1000, message="Token expired")
-                    await self.ws_manager.unregister_guest(websocket)
+    async def _schedule_guest_token_removal(self, token: str, expires_at: datetime):
+        delay = (expires_at - datetime.now()).total_seconds()
+        if delay <= 0:
+            await self._remove_guest_token_and_disconnect(token)
+            return
+        await asyncio.sleep(delay)
+        await self._remove_guest_token_and_disconnect(token)
 
-    async def update_device_status(self):
-        """
-        Tarea periódica que revisa el estado de los dispositivos basándose
-        en su último tiempo de actualización.
-        """
-        while True:
-            await asyncio.sleep(600)  # Esperar 10 minutos
-            current_time = datetime.now()
-            devices_updated = 0
-            offline_threshold = timedelta(minutes=10)
+    async def _remove_guest_token_and_disconnect(self, token: str):
+        if token in self.guest_tokens_active:
+            del self.guest_tokens_active[token]
+        for ws, guest_info in list(self.ws_manager.guest_clients.items()):
+            if guest_info.get("token") == token:
+                try:
+                    await ws.close(code=1000, message="Token expired")
+                except Exception:
+                    pass
 
-            for device in self.ws_manager.devices:
-                device_id = device.get("id", "ID Desconocido")  # Para logging útil
-                last_update_str = device.get("lastupdate")
-                current_status = device.get("status")  # Obtener estado actual
-
-                new_status = None  # Para rastrear si el estado necesita cambiar
-                needs_event = False
-
-                if last_update_str is None:
-                    # Si nunca hubo update, marcar como offline si no lo está ya
-                    if current_status != "offline":
-                        new_status = "offline"
-                else:
-                    try:
-                        # Convertir last_update_str a datetime
-                        last_update_time = datetime.strptime(
-                            last_update_str, "%Y-%m-%d %H:%M:%S"
-                        )
-                        time_difference = current_time - last_update_time
-                        if time_difference > offline_threshold:
-                            # Excedió el umbral, debería estar offline
-                            if current_status == "online":
-                                # ¡Transición! Estaba online, ahora pasa a offline
-                                new_status = "offline"
-                                needs_event = True
-                                print(
-                                    f"Dispositivo {device_id} transicionó a offline (última act: {last_update_str})."
+    async def _update_device_online_status_periodically(self):
+        offline_thresh = timedelta(minutes=10)
+        check_interval = 60
+        logger.info(
+            f"Iniciando tarea periódica de estado online/offline (intervalo: {check_interval}s)."
+        )
+        try:
+            while True:
+                await asyncio.sleep(check_interval)
+                now = datetime.now()
+                for dev in self.ws_manager.get_all_devices():
+                    last_up = dev.get("lastupdate")
+                    cur_stat = dev.get("status")
+                    new_stat = None
+                    notify_offline = False
+                    if last_up is None:
+                        if cur_stat != "offline":
+                            new_stat = "offline"
+                    else:
+                        try:
+                            last_up_dt = datetime.strptime(last_up, "%Y-%m-%d %H:%M:%S")
+                            if (now - last_up_dt) > offline_thresh:
+                                if cur_stat != "offline":
+                                    new_stat = "offline"
+                                if cur_stat == "online":
+                                    notify_offline = True
+                            else:
+                                if cur_stat != "online":
+                                    new_stat = "online"
+                        except ValueError:
+                            if cur_stat != "offline":
+                                new_stat = "offline"
+                    if new_stat is not None:
+                        dev["status"] = new_stat
+                        if new_stat == "offline":
+                            dev["speed"] = 0.0
+                        if notify_offline:
+                            asyncio.create_task(
+                                self.event_notifier.create_and_notify_custom_event(
+                                    dev, "deviceOffline"
                                 )
-                            elif current_status != "offline":
-                                # No estaba 'online' (quizás 'None' u otro estado), pero debería ser 'offline'
-                                new_status = "offline"
-                                print(
-                                    f"Dispositivo {device_id} marcado como offline (estado previo: {current_status}, última act: {last_update_str})."
-                                )
-                            # else: ya estaba offline, no hacer nada con el estado
-
-                        else:
-                            # Dentro del umbral, debería estar online
-                            if current_status != "online":
-                                new_status = "online"
-                                # No se genera evento al pasar a online (según lógica original)
-                                print(
-                                    f"Dispositivo {device_id} marcado/confirmado como online (última act: {last_update_str})."
-                                )
-                            # else: ya estaba online, no hacer nada con el estado
-
-                    except ValueError:
-                        # Error al parsear la fecha
-                        print(
-                            f"Formato de fecha inválido '{last_update_str}' para dispositivo {device_id}. Marcando como offline."
-                        )
-                        if current_status != "offline":
-                            new_status = "offline"
-
-                # Aplicar cambios si es necesario
-                if new_status is not None:
-                    devices_updated += 1
-                    device["status"] = new_status
-                    if new_status == "offline":
-                        device["speed"] = 0.0
-                    # Crear evento SÓLO si hubo transición online -> offline
-                    if needs_event:
-                        e = Events()
-                        asyncio.create_task(e.create_event(device, "deviceOffline"))
-                        asyncio.create_task(
-                            send_message_whatsapp(
-                                "51999369448",
-                                f"El vehículo {device['name']} se desconectó hace 10 minutos.",
                             )
-                        )
-                        asyncio.create_task(
-                            send_message_whatsapp(
-                                "51929804291",
-                                f"El vehículo {device['name']} se desconectó hace 10 minutos.",
+                            msg = f"El vehículo {dev.get('name', 'N/A')} se desconectó."
+                            asyncio.create_task(
+                                send_message_whatsapp("51999369448", msg)
                             )
-                        )
-
-            print(
-                f"Ciclo de actualización completado. {devices_updated} dispositivos actualizados."
+                            asyncio.create_task(
+                                send_message_whatsapp("51929804291", msg)
+                            )
+        except asyncio.CancelledError:
+            logger.info("Tarea de actualización de estado de dispositivos cancelada.")
+        except Exception as e:
+            logger.error(
+                f"Error crítico en _update_device_online_status_periodically: {e}",
+                exc_info=True,
             )
 
     async def start(self):
-        await self.save_devices_init()
-        asyncio.create_task(self.update_device_status())
+        await self._load_initial_devices_cache()
+        asyncio.create_task(self._update_device_online_status_periodically())
         app = web.Application()
         app.router.add_get("/", self.websocket_handler)
         app.router.add_get("/guest", self.guest_websocket_handler)
         app.router.add_route("*", "/api/{tail:.*}", self.http_handler)
-        runner = web.AppRunner(app)
-        await runner.setup()
-        site = web.TCPSite(runner, self.host, self.port)
-        await site.start()
-        print(f"WebSocket Server running on ws://{self.host}:{self.port}/")
-        print(f"HTTP API endpoint running on http://{self.host}:{self.port}/api")
+        self.app_runner = web.AppRunner(app)
+        await self.app_runner.setup()
+        site = web.TCPSite(self.app_runner, self.host, self.port)
+        try:
+            await site.start()
+            logger.info(f"Servidor WS/HTTP en http://{self.host}:{self.port}")
+            # El bucle de servir para siempre se maneja por la tarea principal en main.py
+            # que espera a esta tarea. Para que esta tarea no termine inmediatamente:
+            await asyncio.Event().wait()  # Espera hasta que se cancele
+        except asyncio.CancelledError:
+            logger.info("Servidor WebSocket/HTTP (site.start loop) cancelado.")
