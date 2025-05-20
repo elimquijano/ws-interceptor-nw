@@ -56,8 +56,6 @@ class Database:
     def get_connection(self):
         # Si la conexión se perdió o no se estableció, intentar crearla/recrearla.
         if self.connection is None or not self.connection.is_connected():
-            logger.warning(
-                f"Conexión a BD no disponible o cerrada. Intentando (re)conectar a {self.database}@{self.host}..."
-            )
+            # logger.warning(f"Conexión a BD no disponible o cerrada. Intentando (re)conectar a {self.database}@{self.host}...")
             self.create_connection()
         return self.connection
