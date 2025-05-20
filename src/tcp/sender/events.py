@@ -326,9 +326,9 @@ class EventNotifierService:
                 f"SOS activado en su vehiculo {device_name}"
                 if event_type == "sos"
                 else (
-                    f"Su vehiculo {device_name} salió de la GeoCerca {additional_data.get('geofencename')}"
+                    f"Su vehiculo {device_name} salió de la GeoCerca {additional_data.get('geofencename', 'Desconocido')}"
                     if event_type == "geofenceEnter"
-                    else f"Su vehiculo {device_name} ingresó a la GeoCerca {additional_data.get('geofencename')}"
+                    else f"Su vehiculo {device_name} ingresó a la GeoCerca {additional_data.get('geofencename', 'Desconocido')}"
                 )
             )
             for number in device_info.get("contactos", []):

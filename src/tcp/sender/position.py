@@ -108,6 +108,7 @@ class PositionUpdater:
             "uniqueid": device_in_cache["uniqueid"],
             "latitude": device_in_cache.get("latitude"),
             "longitude": device_in_cache.get("longitude"),
+            "contactos": device_in_cache.get("contactos"),
         }
 
         laststop_val = device_in_cache.get(
