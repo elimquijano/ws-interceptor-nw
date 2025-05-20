@@ -6,6 +6,7 @@ import aiohttp
 from src.controllers.user_devices_controller import UserDevicesController
 from src.utils.common import API_URL_ADMIN_NWPERU
 from src.ws.ws_manager import WebSocketManager
+from src.utils.common import send_message_whatsapp
 
 logger = logging.getLogger(__name__)
 
@@ -270,6 +271,17 @@ class EventNotifierService:
         if associated_users:
             await self.notify_event_to_users(associated_users, final_event_payload)
 
+        # enviar a whatsapp si son eventos de tipo powerCut y lowBattery
+        if event_type in ["powerCut", "lowBattery"]:
+            device_name = device_in_cache.get("name", "Desconocido")
+            message = (
+                f"Corte de energía en su vehiculo {device_name}"
+                if event_type == "powerCut"
+                else f"Batería baja en su vehiculo {device_name}"
+            )
+            for number in device_in_cache.get("contactos", []):
+                asyncio.create_task(send_message_whatsapp(number, message))
+
     async def create_and_notify_custom_event(
         self, device_info: dict, event_type: str, additional_data: dict = None
     ):
@@ -304,3 +316,18 @@ class EventNotifierService:
 
         if associated_users:
             await self.notify_event_to_users(associated_users, event_payload)
+
+        # enviar a whatsapp si son eventos de tipo powerCut y lowBattery
+        if event_type in ["sos", "geofenceEnter", "geofenceExit"]:
+            device_name = device_info.get("name", "Desconocido")
+            message = (
+                f"SOS activado en su vehiculo {device_name}"
+                if event_type == "sos"
+                else (
+                    f"Su vehiculo {device_name} salió de la GeoCerca {additional_data.get('geofencename')}"
+                    if event_type == "geofenceEnter"
+                    else f"Su vehiculo {device_name} ingresó a la GeoCerca {additional_data.get('geofencename')}"
+                )
+            )
+            for number in device_info.get("contactos", []):
+                asyncio.create_task(send_message_whatsapp(number, message))

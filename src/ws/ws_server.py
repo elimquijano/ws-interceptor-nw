@@ -419,13 +419,6 @@ class WebSocketServer:
                                     dev, "deviceOffline"
                                 )
                             )
-                            msg = f"El vehículo {dev.get('name', 'N/A')} se desconectó."
-                            asyncio.create_task(
-                                send_message_whatsapp("51999369448", msg)
-                            )
-                            asyncio.create_task(
-                                send_message_whatsapp("51929804291", msg)
-                            )
         except asyncio.CancelledError:
             logger.info("Tarea de actualización de estado de dispositivos cancelada.")
         except Exception as e:
