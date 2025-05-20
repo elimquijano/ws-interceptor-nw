@@ -280,8 +280,9 @@ class EventNotifierService:
                 else f"Batería baja en su vehiculo {device_name}"
             )
             for number in device_in_cache.get("contactos", []):
-                logger.info(f"Enviando mensaje a {number}: {message}")
-                asyncio.create_task(send_message_whatsapp(number, message))
+                number_phone = "51" + number
+                logger.info(f"Enviando mensaje a {number_phone}: {message}")
+                asyncio.create_task(send_message_whatsapp(number_phone, message))
 
     async def create_and_notify_custom_event(
         self, device_info: dict, event_type: str, additional_data: dict = None
@@ -331,5 +332,6 @@ class EventNotifierService:
                 )
             )
             for number in device_info.get("contactos", []):
-                logger.info(f"Enviando mensaje a {number}: {message}")
-                asyncio.create_task(send_message_whatsapp(number, message))
+                number_phone = "51" + number
+                logger.info(f"Enviando mensaje a {number_phone}: {message}")
+                asyncio.create_task(send_message_whatsapp(number_phone, message))
