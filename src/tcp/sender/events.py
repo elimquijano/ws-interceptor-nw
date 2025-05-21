@@ -323,7 +323,7 @@ class EventNotifierService:
         if event_type in ["sos", "geofenceEnter", "geofenceExit"]:
             device_name = device_info.get("name", "Desconocido")
             message = (
-                f"¡Alerta!, se ha activado el botón de SOS activado en su vehiculo {device_name}, ¿se encuentra bien?, ¡N&W preocupado por su seguridad!"
+                f"¡Alerta!, se ha presionado el botón SOS en su vehiculo {device_name}, ¿se encuentra bien?, ¡N&W preocupado por su seguridad!"
                 if event_type == "sos"
                 else (
                     f"Hola, su vehiculo {device_name} ingresó a la GeoCerca {additional_data.get('geofencename', 'Desconocido')}, ¡N&W preocupado por su seguridad!"
