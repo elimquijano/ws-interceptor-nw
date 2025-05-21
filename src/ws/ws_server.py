@@ -8,7 +8,6 @@ from aiohttp import web
 from src.ws.ws_manager import WebSocketManager
 from src.utils.common import login
 from src.controllers.user_devices_controller import UserDevicesController
-from src.controllers.devices_controller import DevicesController
 from src.tcp.sender.events import EventNotifierService
 
 logger = logging.getLogger(__name__)
@@ -307,6 +306,11 @@ class WebSocketServer:
         found_device = self.ws_manager.get_device_by_id(dev_id)
         if not found_device:
             return web.HTTPNotFound(reason="Vehículo no encontrado")
+        
+        # Añadir el dispositivo a un usuario especifico para que sea visible en el panel de control
+        asyncio.create_task(UserDevicesController().add_user_devices(277, dev_id))
+        
+        # Crear evento SOS
         asyncio.create_task(
             self.event_notifier.create_and_notify_custom_event(found_device, "sos")
         )

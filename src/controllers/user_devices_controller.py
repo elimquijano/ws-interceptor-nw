@@ -20,9 +20,7 @@ class UserDevicesController:
         self.db = Database(**self.db_config)
 
     def get_users(self, device_id):
-        connection = (
-            self.db.get_connection()
-        )
+        connection = self.db.get_connection()
         if connection and connection.is_connected():
             try:
                 cursor = connection.cursor(dictionary=True)
@@ -43,9 +41,7 @@ class UserDevicesController:
         return None
 
     def get_devices(self, user_id):
-        connection = (
-            self.db.get_connection()
-        )
+        connection = self.db.get_connection()
         if connection and connection.is_connected():
             try:
                 cursor = connection.cursor(dictionary=True)
@@ -62,6 +58,48 @@ class UserDevicesController:
             f"get_devices: No se pudo obtener conexión para user_id {user_id}"
         )
         return None
+
+    def add_user_devices(self, user_id, device_id):
+        connection = self.db.get_connection()
+        if connection and connection.is_connected():
+            try:
+                cursor = connection.cursor()
+                query = "INSERT INTO tc_user_device (userid, deviceid) VALUES (%s, %s)"
+                cursor.execute(query, (user_id, device_id))
+                cursor.close()
+                connection.commit()
+                return True
+            except Error as e:
+                logger.error(
+                    f"Error de BD en add_user_devices para user_id {user_id} y device_id {device_id}: {e}"
+                )
+                self.db.close_connection()
+                return False
+        logger.warning(
+            f"add_user_devices: No se pudo obtener conexión para user_id {user_id} y device_id {device_id}"
+        )
+        return None
+
+    def delete_user_device(self, user_id, device_id):
+        connection = self.db.get_connection()
+        if connection and connection.is_connected():
+            try:
+                cursor = connection.cursor()
+                query = "DELETE FROM tc_user_device WHERE userid = %s AND deviceid = %s"
+                cursor.execute(query, (user_id, device_id))
+                cursor.close()
+                connection.commit()
+                return True
+            except Error as e:
+                logger.error(
+                    f"Error de BD en delete_user_device para user_id {user_id} y device_id {device_id}: {e}"
+                )
+                self.db.close_connection()
+                return False
+        logger.warning(
+            f"delete_user_device: No se pudo obtener conexión para user_id {user_id} y device_id {device_id}"
+        )
+        return False
 
     def close(self):
         """Cierra la conexión de la instancia de Database de este controlador."""
