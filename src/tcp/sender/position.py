@@ -46,37 +46,6 @@ class PositionUpdater:
             await asyncio.to_thread(self.devices_controller_internal.close)
             logger.info("DevicesController interno de PositionUpdater cerrado.")
 
-    async def _refresh_entire_device_cache_from_api(self):
-        """
-        Refresca el caché global de dispositivos llamando a la API externa
-        a través de self.devices_controller_internal.get_devices().
-        """
-        async with self._refresh_lock:
-            logger.info(
-                "Iniciando refresco completo del caché global de dispositivos desde API externa..."
-            )
-            try:
-                all_devices_from_api = await asyncio.to_thread(
-                    self.devices_controller_internal.get_devices
-                )
-
-                if (
-                    all_devices_from_api is not None
-                ):  # La API pudo devolver None en caso de error
-                    await self.ws_manager.save_devices(all_devices_from_api)
-                    logger.info(
-                        f"Caché global de dispositivos refrescado desde API con {len(all_devices_from_api)} dispositivos."
-                    )
-                else:
-                    logger.warning(
-                        "No se recibieron datos de dispositivos de la API externa durante el refresco. El caché no fue actualizado."
-                    )
-            except Exception as e:
-                logger.error(
-                    f"Error durante el refresco completo del caché global desde API: {e}",
-                    exc_info=True,
-                )
-
     async def process_position_update(self, position_event_data: dict):
         imei = position_event_data.get("imei")
         new_dt_str = position_event_data.get("datetime")
@@ -89,7 +58,7 @@ class PositionUpdater:
             logger.info(
                 f"IMEI {imei} no encontrado en caché. Disparando refresco completo desde API."
             )
-            await self._refresh_entire_device_cache_from_api()
+            await self.ws_manager._update_selective_devices_cache()
             device_in_cache = self.ws_manager.get_device_by_uniqueid(
                 str(imei)
             )
@@ -184,7 +153,7 @@ class PositionUpdater:
             logger.info(
                 f"Conexión de IMEI {imei} no encontrado en caché. Disparando refresco completo desde API."
             )
-            await self._refresh_entire_device_cache_from_api()  # Siempre refresca todo
+            await self.ws_manager._update_selective_devices_cache() 
             dev_cache = self.ws_manager.get_device_by_uniqueid(str(imei))
             if not dev_cache:
                 logger.warning(

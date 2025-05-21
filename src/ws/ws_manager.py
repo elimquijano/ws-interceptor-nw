@@ -2,6 +2,7 @@ import json
 import asyncio
 from datetime import datetime
 import logging
+from src.controllers.devices_controller import DevicesController
 
 logger = logging.getLogger(__name__)
 
@@ -161,3 +162,121 @@ class WebSocketManager:
         if isinstance(obj, datetime):
             return obj.isoformat()
         return obj
+
+    async def _load_initial_devices_cache(self):
+        local_dc = DevicesController()
+        try:
+            all_devices = await asyncio.to_thread(local_dc.get_devices)
+            await self.save_devices(all_devices)
+            logger.info(
+                f"Caché de dispositivos (re)cargado con {len(all_devices)} dispositivos."
+            )
+        except Exception as e:
+            logger.error(f"Error cargando caché de dispositivos: {e}", exc_info=True)
+        finally:
+            if hasattr(local_dc, "close") and callable(getattr(local_dc, "close")):
+                await asyncio.to_thread(local_dc.close)
+
+    async def _update_selective_devices_cache(self):
+        """
+        Actualiza el caché de dispositivos de forma selectiva.
+
+        Compara una lista fresca de dispositivos (de DevicesController) con
+        el caché actual (self.devices). Actualiza solo campos
+        específicos para dispositivos existentes, añade nuevos y elimina los obsoletos.
+        Finalmente, guarda la lista resultante usando self.save_devices().
+        """
+        local_dc = DevicesController()  # Para obtener la lista fresca de dispositivos
+
+        DEVICE_ID_FIELD = "id"  # Campo identificador único de los dispositivos.
+
+        fields_to_update = {
+            "positionid",
+            "groupid",
+            "attributes",
+            "phone",
+            "model",
+            "contact",
+            "category",
+            "icon",
+            "latitude",
+            "longitude",
+            "course",
+            "speed",
+            "driver",
+            "contactos",
+        }
+
+        # Lista que contendrá el resultado final de la fusión para el caché
+        merged_list_for_cache = []
+
+        try:
+            # 1. Obtener la lista "fresca" de dispositivos desde el controlador
+            fresh_devices_list = await asyncio.to_thread(local_dc.get_devices)
+
+            # 2. Obtener la lista "antigua" (caché actual)
+            #    y crear un mapa para acceso rápido por ID.
+            #    Accedemos a self.devices directamente como indicaste para leer el caché.
+            current_cache_map = {}
+            if hasattr(self, "devices") and isinstance(
+                self.devices, list
+            ):
+                for device_in_cache in self.devices:
+                    device_id_val = device_in_cache.get(DEVICE_ID_FIELD)
+                    if device_id_val is not None:
+                        current_cache_map[device_id_val] = device_in_cache
+
+            # 3. Procesar la lista fresca y fusionar/añadir a merged_list_for_cache
+            for fresh_device in fresh_devices_list:
+                fresh_device_id = fresh_device.get(DEVICE_ID_FIELD)
+
+                if fresh_device_id is None:
+                    # Dispositivo fresco sin ID, no se puede procesar. Opcionalmente loguear.
+                    continue
+
+                if fresh_device_id in current_cache_map:
+                    # Dispositivo existente: tomar el del caché y actualizar campos específicos
+                    cached_device = current_cache_map[fresh_device_id]
+
+                    # Crear una copia del dispositivo cacheado para preservar sus campos no listados
+                    updated_device_data = cached_device.copy()
+
+                    # Actualizar solo los campos especificados desde el dispositivo fresco
+                    for field in fields_to_update:
+                        if (
+                            field in fresh_device
+                        ):  # Asegurarse que el campo existe en el objeto fresco
+                            updated_device_data[field] = fresh_device[field]
+
+                    merged_list_for_cache.append(updated_device_data)
+                else:
+                    # Dispositivo nuevo: añadirlo tal cual
+                    merged_list_for_cache.append(fresh_device)
+
+            # 4. Guardar la lista fusionada y actualizada usando el método del WsManager
+            #    Esto reemplazará el caché antiguo con la nueva lista.
+            if hasattr(self, "save_devices") and callable(
+                self.save_devices
+            ):
+                await self.save_devices(merged_list_for_cache)
+                # logger.info(f"Caché selectivo guardado. {len(merged_list_for_cache)} dispositivos.") # Opcional
+            else:
+                # Fallback o error si save_devices no existe (según tu descripción, debería existir)
+                logger.error(
+                    "WsManager no tiene el método save_devices o no es llamable."
+                )  # Opcional
+                # Como alternativa, si save_devices no existiera y la única forma fuera la asignación directa:
+                # self.devices = merged_list_for_cache
+                # Pero sigo tu indicación de usar save_devices.
+                pass
+
+        except Exception as e:
+            logger.error(
+                f"Error en _update_selective_devices_cache: {e}", exc_info=True
+            )  # Opcional
+            # Considerar cómo manejar el error (relanzar, etc.)
+            pass
+        finally:
+            # Asegurar que los recursos del DevicesController se liberan, si es necesario
+            if hasattr(local_dc, "close") and callable(getattr(local_dc, "close")):
+                await asyncio.to_thread(local_dc.close)
