@@ -321,15 +321,17 @@ class WebSocketServer:
 
         fields_to_update = {
             "positionid",
-            "lastupdate",
             "groupid",
             "attributes",
             "phone",
             "model",
             "contact",
             "category",
-            "status",
             "icon",
+            "latitude",
+            "longitude",
+            "course",
+            "speed",
             "driver",
             "contactos",
         }

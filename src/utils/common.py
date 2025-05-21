@@ -40,3 +40,14 @@ async def send_message_whatsapp(phone, message):
     }
     response = requests.request("POST", url, headers=headers, data=payload)
     print(response.text)
+
+
+async def send_image_whatsapp(urlImage, phone, message=None):
+    url = HOST_URL_WHATSAPP + "send-media"
+    payload = json.dumps({"number": phone, "caption": message, "mediaUrl": urlImage})
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + os.getenv("TOKEN_API_WHATSAPP"),
+    }
+    response = requests.request("POST", url, headers=headers, data=payload)
+    print(response.text)

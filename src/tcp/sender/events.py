@@ -275,9 +275,9 @@ class EventNotifierService:
         if event_type in ["powerCut", "lowBattery"]:
             device_name = device_in_cache.get("name", "Desconocido")
             message = (
-                f"Corte de energía en su vehiculo {device_name}"
+                f"Alerta!, Corte de energía en su vehiculo {device_name}, ¡N&W preocupado por su seguridad!"
                 if event_type == "powerCut"
-                else f"Batería baja en su vehiculo {device_name}"
+                else f"¡Alerta!, Batería baja en su vehiculo {device_name}, ¡N&W preocupado por su seguridad!"
             )
             for number in device_in_cache.get("contactos", []):
                 number_phone = "51" + number
@@ -323,12 +323,12 @@ class EventNotifierService:
         if event_type in ["sos", "geofenceEnter", "geofenceExit"]:
             device_name = device_info.get("name", "Desconocido")
             message = (
-                f"SOS activado en su vehiculo {device_name}"
+                f"¡Alerta!, se ha activado el botón de SOS activado en su vehiculo {device_name}, ¿se encuentra bien?, ¡N&W preocupado por su seguridad!"
                 if event_type == "sos"
                 else (
-                    f"Su vehiculo {device_name} ingresó a la GeoCerca {additional_data.get('geofencename', 'Desconocido')}"
+                    f"Hola, su vehiculo {device_name} ingresó a la GeoCerca {additional_data.get('geofencename', 'Desconocido')}, ¡N&W preocupado por su seguridad!"
                     if event_type == "geofenceEnter"
-                    else f"Su vehiculo {device_name} salió de la GeoCerca {additional_data.get('geofencename', 'Desconocido')}"
+                    else f"Hola, su vehiculo {device_name} salió de la GeoCerca {additional_data.get('geofencename', 'Desconocido')},¡N&W preocupado por su seguridad!"
                 )
             )
             for number in device_info.get("contactos", []):
