@@ -9,7 +9,7 @@ def setup_logging():
     if not logger.handlers:
         logger.setLevel(LOG_LEVEL)
         formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - [%(module)s.%(funcName)s:%(lineno)d] - %(message)s"
+            "%(asctime)s - %(levelname)s - [%(name)s.%(funcName)s:%(lineno)d] - %(message)s"
         )
         ch = logging.StreamHandler(sys.stdout)
         ch.setFormatter(formatter)
