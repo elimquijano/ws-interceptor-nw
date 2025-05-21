@@ -308,7 +308,7 @@ class WebSocketServer:
             return web.HTTPNotFound(reason="Vehículo no encontrado")
         
         # Añadir el dispositivo a un usuario especifico para que sea visible en el panel de control
-        asyncio.create_task(UserDevicesController().add_user_devices(277, dev_id))
+        await asyncio.to_thread(UserDevicesController().add_user_devices(277, dev_id))
         
         # Crear evento SOS
         asyncio.create_task(
