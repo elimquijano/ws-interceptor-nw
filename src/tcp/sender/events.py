@@ -275,9 +275,9 @@ class EventNotifierService:
         if event_type in ["powerCut", "lowBattery"]:
             device_name = device_in_cache.get("name", "Desconocido")
             message = (
-                f"Alerta!, Corte de energía en su vehiculo {device_name}, ¡N&W preocupado por su seguridad!"
+                f"Alerta!, Corte de energía en su vehiculo {device_name}, \n¡N&W preocupado por tu seguridad!"
                 if event_type == "powerCut"
-                else f"¡Alerta!, Batería baja en su vehiculo {device_name}, ¡N&W preocupado por su seguridad!"
+                else f"¡Alerta!, Batería baja en su vehiculo {device_name}, \n¡N&W preocupado por tu seguridad!"
             )
             for number in device_in_cache.get("contactos", []):
                 number_phone = "51" + number
@@ -323,12 +323,12 @@ class EventNotifierService:
         if event_type in ["sos", "geofenceEnter", "geofenceExit"]:
             device_name = device_info.get("name", "Desconocido")
             message = (
-                f"¡Alerta!, se ha presionado el botón SOS en su vehiculo {device_name}, ¿se encuentra bien?, ¡N&W preocupado por su seguridad!"
+                f"¡Alerta!, se ha presionado el botón SOS en su vehiculo {device_name}, ¿se encuentra bien?, \n¡N&W preocupado por tu seguridad!"
                 if event_type == "sos"
                 else (
-                    f"Hola, su vehiculo {device_name} ingresó a la GeoCerca {additional_data.get('geofencename', 'Desconocido')}, ¡N&W preocupado por su seguridad!"
+                    f"Hola, su vehiculo {device_name} ingresó a la GeoCerca {additional_data.get('geofencename', 'Desconocido')}, \n¡N&W preocupado por tu seguridad!"
                     if event_type == "geofenceEnter"
-                    else f"Hola, su vehiculo {device_name} salió de la GeoCerca {additional_data.get('geofencename', 'Desconocido')},¡N&W preocupado por su seguridad!"
+                    else f"Hola, su vehiculo {device_name} salió de la GeoCerca {additional_data.get('geofencename', 'Desconocido')},\n¡N&W preocupado por tu seguridad!"
                 )
             )
             for number in device_info.get("contactos", []):
