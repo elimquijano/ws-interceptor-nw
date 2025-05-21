@@ -306,10 +306,25 @@ class WebSocketServer:
         found_device = self.ws_manager.get_device_by_id(dev_id)
         if not found_device:
             return web.HTTPNotFound(reason="Vehículo no encontrado")
-        
-        # Añadir el dispositivo a un usuario especifico para que sea visible en el panel de control
-        await asyncio.to_thread(UserDevicesController().add_user_devices(277, dev_id))
-        
+
+        # Añadir dispositivo al usuario 277
+        user_devices_controller_instance = UserDevicesController()
+        try:
+            add_success = await asyncio.to_thread(
+                user_devices_controller_instance.add_user_devices, 277, dev_id
+            )
+            if not add_success:
+                return web.HTTPInternalServerError(
+                    reason="Error al añadir dispositivo al usuario 277."
+                )
+        except Exception as e:
+            logger.exception(
+                f"Excepción inesperada al intentar añadir dispositivo {dev_id} al usuario 277: {e}"
+            )
+            return web.HTTPInternalServerError(
+                reason="Error interno al procesar la solicitud."
+            )
+
         # Crear evento SOS
         asyncio.create_task(
             self.event_notifier.create_and_notify_custom_event(found_device, "sos")
