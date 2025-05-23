@@ -278,9 +278,9 @@ class EventNotifierService:
                 number_phone = "51" + contacto["phone"]
                 username = contacto["name"]
                 message = (
-                    f"⚠️ Alerta {username}!, Corte de energía en su vehículo {device_name} ⚡\n\n¡N&W preocupado por tu seguridad! 🛡️"
+                    f"⚠️ Alerta {username}!, Corte de energía en su vehículo {device_name} ⚡\n\n¡N&W pensando en tu seguridad!"
                     if event_type == "powerCut"
-                    else f"🔋 ¡Alerta {username}!, Batería baja en su vehículo {device_name} ⚠️\n\n¡N&W preocupado por tu seguridad! 🛡️"
+                    else f"🔋 ¡Alerta {username}!, Batería baja en su vehículo {device_name} ⚠️\n\n¡N&W pensando en tu seguridad!"
                 )
                 logger.info(f"Enviando mensaje a {number_phone}: {message}")
                 asyncio.create_task(send_message_whatsapp(number_phone, message))
@@ -327,12 +327,12 @@ class EventNotifierService:
                 number_phone = "51" + contacto["phone"]
                 username = contacto["name"]
                 message = (
-                    f"🚨 ¡Alerta {username}!, se ha presionado el botón SOS en su vehículo {device_name}, ¿se encuentra bien? 😢\n\n¡N&W preocupado por tu seguridad! 🛡️"
+                    f"🚨 ¡Alerta {username}!, se ha presionado el botón SOS en su vehículo {device_name}, ¿se encuentra bien? 😢\n\n¡N&W pensando en tu seguridad!"
                     if event_type == "sos"
                     else (
-                        f"👋 Hola {username}, su vehículo {device_name} ingresó a la GeoCerca {additional_data.get('geofencename', 'Desconocido')} 🌍\n\n¡N&W preocupado por tu seguridad! 🛡️"
+                        f"👋 Hola {username}, su vehículo {device_name} ingresó a la GeoCerca {additional_data.get('geofencename', 'Desconocido')} 🌍\n\n¡N&W pensando en tu seguridad!"
                         if event_type == "geofenceEnter"
-                        else f"👋 Hola {username}, su vehículo {device_name} salió de la GeoCerca {additional_data.get('geofencename', 'Desconocido')} 🚪\n\n¡N&W preocupado por tu seguridad! 🛡️"
+                        else f"👋 Hola {username}, su vehículo {device_name} salió de la GeoCerca {additional_data.get('geofencename', 'Desconocido')} 🚪\n\n¡N&W pensando en tu seguridad!"
                     )
                 )
                 logger.info(f"Enviando mensaje a {number_phone}: {message}")
