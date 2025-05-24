@@ -218,31 +218,23 @@ class WebSocketServer:
         logger.info(f"Iniciando tarea periódica de envío para user {user_id}.")
         try:
             while True:
-                # 1. INICIAR la tarea de obtener los dispositivos asignados al usuario desde la BD
                 user_device_assignments_task = asyncio.create_task(
                     asyncio.to_thread(ud_controller.get_devices, user_id)
                 )
-                # 2. ESPERAR 5 segundos
                 await asyncio.sleep(5)
-                # 3. OBTENER el resultado de la tarea de BD.
                 user_device_assignments = await user_device_assignments_task
-                # El print "VEHIUCLOSSSSS..." está dentro de ud_controller.get_devices
 
                 if user_device_assignments is None:
                     logger.warning(
                         f"No se pudieron obtener dispositivos para user {user_id} en tarea periódica. Reintentando en 30s."
                     )
-                    await asyncio.sleep(
-                        25
-                    )  # sleep adicional de 25s + 5s del inicio del bucle = 30s
+                    await asyncio.sleep(25)
                     continue
 
                 device_ids_assigned_to_user = {
                     item["deviceid"] for item in user_device_assignments
                 }
-                all_cached_devices = (
-                    self.ws_manager.get_all_devices()
-                )  # self.ws_manager.devices
+                all_cached_devices = self.ws_manager.get_all_devices()
                 devices_for_this_client = [
                     dev
                     for dev in all_cached_devices
@@ -254,15 +246,11 @@ class WebSocketServer:
                 )
         except asyncio.CancelledError:
             logger.info(f"Tarea periódica de envío para user {user_id} cancelada.")
-            # El cierre del ud_controller se maneja en websocket_handler
         except Exception as e:
             logger.error(
                 f"Error crítico en _send_devices_periodically_to_user para user {user_id}: {e}",
                 exc_info=True,
             )
-            # La tarea podría continuar. Si la conexión a BD en ud_controller se pierde permanentemente,
-            # get_devices podría seguir fallando. El ud_controller solo se recrea si todos los clientes
-            # de este usuario se desconectan y luego uno nuevo se conecta.
 
     async def _send_device_periodically_to_guest(self, token: str, device_id: int):
         try:
@@ -307,23 +295,10 @@ class WebSocketServer:
         if not found_device:
             return web.HTTPNotFound(reason="Vehículo no encontrado")
 
-        # Añadir dispositivo al usuario 277
-        user_devices_controller_instance = UserDevicesController()
-        try:
-            add_success = await asyncio.to_thread(
-                user_devices_controller_instance.add_user_devices, 277, dev_id
-            )
-            if not add_success:
-                return web.HTTPInternalServerError(
-                    reason="Error al añadir dispositivo al usuario 277."
-                )
-        except Exception as e:
-            logger.exception(
-                f"Excepción inesperada al intentar añadir dispositivo {dev_id} al usuario 277: {e}"
-            )
-            return web.HTTPInternalServerError(
-                reason="Error interno al procesar la solicitud."
-            )
+        # Añadir dispositivo a usuarios cercanos de soporte
+        asyncio.create_task(
+            self.ws_manager.add_vehicle_to_nearby_support_users_task(found_device)
+        )
 
         # Crear evento SOS
         asyncio.create_task(

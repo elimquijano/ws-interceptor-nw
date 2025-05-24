@@ -1,8 +1,11 @@
 import json
+import aiohttp
 import asyncio
 from datetime import datetime
 import logging
 from src.controllers.devices_controller import DevicesController
+from src.controllers.user_devices_controller import UserDevicesController
+from src.utils.common import API_URL_ADMIN_NWPERU
 
 logger = logging.getLogger(__name__)
 
@@ -218,9 +221,7 @@ class WebSocketManager:
             #    y crear un mapa para acceso rápido por ID.
             #    Accedemos a self.devices directamente como indicaste para leer el caché.
             current_cache_map = {}
-            if hasattr(self, "devices") and isinstance(
-                self.devices, list
-            ):
+            if hasattr(self, "devices") and isinstance(self.devices, list):
                 for device_in_cache in self.devices:
                     device_id_val = device_in_cache.get(DEVICE_ID_FIELD)
                     if device_id_val is not None:
@@ -255,9 +256,7 @@ class WebSocketManager:
 
             # 4. Guardar la lista fusionada y actualizada usando el método del WsManager
             #    Esto reemplazará el caché antiguo con la nueva lista.
-            if hasattr(self, "save_devices") and callable(
-                self.save_devices
-            ):
+            if hasattr(self, "save_devices") and callable(self.save_devices):
                 await self.save_devices(merged_list_for_cache)
                 # logger.info(f"Caché selectivo guardado. {len(merged_list_for_cache)} dispositivos.") # Opcional
             else:
@@ -280,3 +279,115 @@ class WebSocketManager:
             # Asegurar que los recursos del DevicesController se liberan, si es necesario
             if hasattr(local_dc, "close") and callable(getattr(local_dc, "close")):
                 await asyncio.to_thread(local_dc.close)
+
+    async def add_vehicle_to_nearby_support_users_task(self, device: dict) -> None:
+        """
+        Función "fire-and-forget" completamente autónoma para añadir un vehículo a usuarios.
+        UserDevicesController se instancia localmente.
+        """
+        if not isinstance(device, dict):
+            logger.error(
+                f"TASK: Entrada 'device' no es un diccionario. Recibido: {type(device)}. No se puede procesar."
+            )
+            return
+
+        device_id = device.get("id")
+        latitude = device.get("latitude")
+        longitude = device.get("longitude")
+
+        if latitude is None or longitude is None or device_id is None:
+            logger.info(
+                f"TASK: Datos insuficientes en 'device' (id: {device_id}, lat: {latitude}, lon: {longitude}). No se puede continuar."
+            )
+            return
+
+        api_url = f"{API_URL_ADMIN_NWPERU}nearby-support?latitude={latitude}&longitude={longitude}"
+
+        # Instanciar UserDevicesController aquí, dentro de la función
+        user_devices_controller = UserDevicesController()
+
+        logger.info(
+            f"TASK: Iniciando adición de vehículo {device_id} (Lat: {latitude}, Lon: {longitude}) a usuarios de soporte."
+        )
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(api_url) as response:
+                    response.raise_for_status()
+                    users_data = await response.json()
+
+                    if not users_data or not isinstance(users_data, list):
+                        logger.info(
+                            f"TASK: No se encontraron usuarios de soporte válidos para dispositivo {device_id} (Respuesta: {str(users_data)[:100]})."
+                        )
+                        return
+
+                    tasks = []
+                    for user_info in users_data:
+                        if not isinstance(user_info, dict):
+                            logger.warning(
+                                f"TASK: Elemento de usuario no es un diccionario, se omite: {str(user_info)[:50]}"
+                            )
+                            continue
+
+                        userid_val = user_info.get("userid")
+                        if userid_val is None:
+                            logger.warning(
+                                f"TASK: Elemento de usuario sin 'userid', se omite: {user_info}"
+                            )
+                            continue
+
+                        try:
+                            userid = int(userid_val)
+                            # Usar la instancia local 'user_devices_controller'
+                            task = asyncio.to_thread(
+                                user_devices_controller.add_user_devices,  # <--- Cambio aquí
+                                userid,
+                                device_id,
+                            )
+                            tasks.append(task)
+                        except (ValueError, TypeError):
+                            logger.warning(
+                                f"TASK: UserID '{userid_val}' no es un entero válido, se omite."
+                            )
+
+                    if tasks:
+                        results = await asyncio.gather(*tasks, return_exceptions=True)
+                        for i, res in enumerate(results):
+                            if isinstance(res, Exception):
+                                logger.error(
+                                    f"TASK: Fallo en sub-tarea de añadir {device_id} (índice {i}): {res}"
+                                )
+                            elif not res:
+                                logger.warning(
+                                    f"TASK: Sub-tarea de añadir {device_id} (índice {i}) devolvió False."
+                                )
+                    else:
+                        logger.info(
+                            f"TASK: No se generaron tareas de adición para dispositivo {device_id}."
+                        )
+
+        except aiohttp.ClientResponseError as e_http_status:
+            logger.error(
+                f"TASK: Error HTTP {e_http_status.status} de API {api_url} para disp {device_id}: {e_http_status.message}",
+                exc_info=False,
+            )
+        except aiohttp.ClientError as e_http_client:
+            logger.error(
+                f"TASK: Error de cliente aiohttp al contactar {api_url} para disp {device_id}: {e_http_client}",
+                exc_info=False,
+            )
+        except (KeyError, TypeError, ValueError) as e_data:
+            logger.error(
+                f"TASK: Error de datos procesando para dispositivo {device_id}: {e_data}",
+                exc_info=True,
+            )
+        except Exception as e_general:
+            logger.error(
+                f"TASK: Error inesperado procesando dispositivo {device_id}: {e_general}",
+                exc_info=True,
+            )
+
+        logger.info(
+            f"TASK: Finalizada ejecución de add_vehicle_to_nearby_support_users_task para dispositivo {device_id}."
+        )
