@@ -296,9 +296,7 @@ class WebSocketServer:
             return web.HTTPNotFound(reason="Vehículo no encontrado")
 
         # Añadir dispositivo a usuarios cercanos de soporte
-        asyncio.create_task(
-            self.ws_manager.add_vehicle_to_nearby_support_users_task(found_device)
-        )
+        await self.ws_manager.add_vehicle_to_nearby_support_users_task(found_device)
 
         # Crear evento SOS
         asyncio.create_task(
