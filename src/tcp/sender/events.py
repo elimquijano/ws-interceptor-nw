@@ -65,7 +65,7 @@ def _build_notification_payload(
         "ignitionOn": f"Encendido del vehiculo {device_name}",
         "ignitionOff": f"Apagado del vehiculo {device_name}",
         "powerCut": f"Corte de energía en su vehiculo {device_name}",
-        "deviceOffline": f"El vehiculo {device_name} se encuentra desconectado",
+        "deviceOffline": f"El vehiculo {device_name} se encuentra fuera de línea",
         "deviceOverspeed": f"El vehiculo {device_name} ha excedido la velocidad permitida",
         "geofenceEnter": f"El vehiculo {device_name} ha ingresado a la geocerca {geofence_name or 'desconocida'}",
         "geofenceExit": f"El vehiculo {device_name} ha salido de la geocerca {geofence_name or 'desconocida'}",

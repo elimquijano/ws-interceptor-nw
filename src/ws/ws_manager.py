@@ -282,18 +282,14 @@ class WebSocketManager:
 
     async def add_vehicle_to_nearby_support_users_task(self, device: dict) -> None:
         """
-        Función "fire-and-forget" completamente autónoma para añadir un vehículo a usuarios.
-        UserDevicesController se instancia localmente.
-        """
-        if not isinstance(device, dict):
-            logger.error(
-                f"TASK: Entrada 'device' no es un diccionario. Recibido: {type(device)}. No se puede procesar."
-            )
-            return
+        Añade asíncronamente el vehículo a usuarios de soporte cercanos (tarea "fire-and-forget").
 
-        device_id = device.get("id")
-        latitude = device.get("latitude")
-        longitude = device.get("longitude")
+        Consulta la API de `nearby-support` y luego asigna el vehículo a los usuarios
+        mediante `UserDevicesController` (instanciado localmente). Errores se loguean.
+        """
+        device_id = device.get("id", None)
+        latitude = device.get("latitude", None)
+        longitude = device.get("longitude", None)
 
         if latitude is None or longitude is None or device_id is None:
             logger.info(
@@ -302,14 +298,7 @@ class WebSocketManager:
             return
 
         api_url = f"{API_URL_ADMIN_NWPERU}nearby-support?latitude={latitude}&longitude={longitude}"
-
-        # Instanciar UserDevicesController aquí, dentro de la función
         user_devices_controller = UserDevicesController()
-
-        logger.info(
-            f"TASK: Iniciando adición de vehículo {device_id} (Lat: {latitude}, Lon: {longitude}) a usuarios de soporte."
-        )
-
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(api_url) as response:
@@ -339,9 +328,8 @@ class WebSocketManager:
 
                         try:
                             userid = int(userid_val)
-                            # Usar la instancia local 'user_devices_controller'
                             task = asyncio.to_thread(
-                                user_devices_controller.add_user_devices,  # <--- Cambio aquí
+                                user_devices_controller.add_user_devices,
                                 userid,
                                 device_id,
                             )
@@ -387,7 +375,3 @@ class WebSocketManager:
                 f"TASK: Error inesperado procesando dispositivo {device_id}: {e_general}",
                 exc_info=True,
             )
-
-        logger.info(
-            f"TASK: Finalizada ejecución de add_vehicle_to_nearby_support_users_task para dispositivo {device_id}."
-        )
