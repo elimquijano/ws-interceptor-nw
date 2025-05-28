@@ -36,6 +36,20 @@ NOTIFICATION_TEMPLATES = {
         "android": {"channelId": "sos-channel"},
         "ios": {"sound": "sirena.wav"},
     },
+    "ignitionOn": {
+        "sound": "encendido.wav",
+        "title": "¡Alerta!",
+        "channelId": "ignitionon-channel",
+        "android": {"channelId": "ignitionon-channel"},
+        "ios": {"sound": "encendido.wav"},
+    },
+    "ignitionOff": {
+        "sound": "apagado.wav",
+        "title": "¡Alerta!",
+        "channelId": "ignitionoff-channel",
+        "android": {"channelId": "ignitionoff-channel"},
+        "ios": {"sound": "apagado.wav"},
+    },
 }
 
 
