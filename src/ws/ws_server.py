@@ -300,7 +300,11 @@ class WebSocketServer:
 
         # Crear evento SOS
         asyncio.create_task(
-            self.event_notifier.create_and_notify_custom_event(found_device, "sos")
+            self.event_notifier.create_and_notify_custom_event(
+                found_device,
+                "sos",
+                {"contactos": found_device.get("contactos", [])},
+            )
         )
         return web.Response(text="Evento SOS creado", status=200)
 
