@@ -1,2 +1,2 @@
 def decode_osmand(fullstring):
-    return {"data": fullstring}
+    return [{"data": fullstring}]
