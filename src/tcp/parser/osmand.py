@@ -33,7 +33,6 @@ def decode_osmand(fullstring: str) -> list:
               posición decodificada. Retorna una lista vacía si no se pueden
               parsear datos válidos.
     """
-    print(fullstring)
     positions = []
 
     # La cadena puede contener múltiples peticiones HTTP concatenadas.
