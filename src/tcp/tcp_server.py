@@ -76,9 +76,6 @@ class TCPServer:
             for data_dict in decoded_data_list:
                 if isinstance(data_dict, dict):
                     logger.info(f"{device_original_port} - {data_dict}") # Log de datos decodificados
-                    if device_original_port == PORT_TRACCAR_CLIENT:
-                        print(raw_message_data)
-                        return
                     await self._process_decoded_data(device_original_port, data_dict)
                 else:
                     logger.warning(
