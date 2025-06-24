@@ -4,6 +4,7 @@ import json
 import logging
 from src.tcp.parser.h02 import decode_h02
 from src.tcp.parser.gps103 import decode_gps103
+from src.tcp.parser.osmand import decode_osmand
 from src.tcp.sender.position import PositionUpdater
 from src.tcp.sender.events import EventNotifierService
 from src.ws.ws_manager import WebSocketManager
@@ -13,6 +14,7 @@ logger = logging.getLogger(__name__)
 PORT_COBAN = 6001
 PORT_SINOTRACK = 6013
 # PORT_TELTONIKA = 6027
+PORT_TRACCAR_CLIENT = 6055
 
 TYPE_CONNECTION = "conexion"
 TYPE_POSITION = "position"
@@ -35,6 +37,7 @@ class TCPServer:
         self.protocol_decoders = {
             PORT_COBAN: decode_gps103,  # Usa los nombres de función de tus parsers
             PORT_SINOTRACK: decode_h02,
+            PORT_TRACCAR_CLIENT: decode_osmand,
         }
         logger.info(
             f"TCPServer inicializado para JSON broker en {self.host}:{self.port}."
@@ -73,6 +76,9 @@ class TCPServer:
             for data_dict in decoded_data_list:
                 if isinstance(data_dict, dict):
                     logger.info(f"{device_original_port} - {data_dict}") # Log de datos decodificados
+                    if device_original_port == PORT_TRACCAR_CLIENT:
+                        print(raw_message_data)
+                        return
                     await self._process_decoded_data(device_original_port, data_dict)
                 else:
                     logger.warning(
