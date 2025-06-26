@@ -74,7 +74,7 @@ def decode_osmand(fullstring: str) -> list:
             # El protocolo OsmAnd envía la velocidad en nudos (knots).
             # 1 nudo = 1.852 km/h
             speed_knots = float(data.get("speed", 0.0))
-            speed_kmh = round(speed_knots * 1.852, 2)
+            speed_kmh = round(speed_knots, 2)
 
             # Formatear la fecha
             formatted_dt = format_timestamp(data["timestamp"])
