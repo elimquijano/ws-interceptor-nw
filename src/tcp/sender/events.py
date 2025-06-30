@@ -59,6 +59,7 @@ def _build_notification_payload(
     device_name: str,
     device_id: int,
     geofence_name: str = None,
+    category: str = None,
 ):
     base_template = NOTIFICATION_TEMPLATES.get("default", {}).copy()
     event_specific_template = NOTIFICATION_TEMPLATES.get(event_type, {}).copy()
@@ -75,7 +76,11 @@ def _build_notification_payload(
         }
     body_messages = {
         "alarm": f"Movimiento inusual en su vehiculo {device_name}",
-        "sos": f"Se ha activado una alerta de SOS en su vehículo {device_name}",
+        "sos": (
+            f"{device_name} necesita ayuda urgente"
+            if (category is not None and category == "person")
+            else f"Se ha activado una alerta de SOS en su vehículo {device_name}"
+        ),
         "ignitionOn": f"Encendido del vehiculo {device_name}",
         "ignitionOff": f"Apagado del vehiculo {device_name}",
         "powerCut": f"Corte de energía en su vehiculo {device_name}",
@@ -206,6 +211,7 @@ class EventNotifierService:
                 event_data_for_notification.get("name", "N/A"),
                 event_data_for_notification.get("deviceid", 0),
                 event_data_for_notification.get("geofencename"),
+                event_data_for_notification.get("category"),
             )
             if payload:
                 push_tasks.append(self._send_expo_push(token_val, payload))
@@ -337,11 +343,17 @@ class EventNotifierService:
         # enviar a whatsapp si son eventos de tipo sos, geofenceEnter, geofenceExit
         if event_type in ["sos", "geofenceEnter", "geofenceExit"]:
             device_name = device_info.get("name", "Desconocido")
+            device_category = device_info.get("category", "Desconocido")
+            sms_sos = (
+                f"{device_name} necesita ayuda urgente 😢, comuníquese con él"
+                if device_category == "person"
+                else f"se ha presionado el botón SOS en su vehículo {device_name}, ¿se encuentra bien? 😢"
+            )
             for contacto in device_info.get("contactos", []):
                 number_phone = "51" + contacto["phone"]
                 username = contacto["name"]
                 message = (
-                    f"🚨 ¡Alerta {username}!, se ha presionado el botón SOS en su vehículo {device_name}, ¿se encuentra bien? 😢\n\n¡N&W pensando en tu seguridad!"
+                    f"🚨 ¡Alerta {username}!, {sms_sos}\n\n¡N&W pensando en tu seguridad!"
                     if event_type == "sos"
                     else (
                         f"👋 Hola {username}, su vehículo {device_name} ingresó a la GeoCerca {additional_data.get('geofencename', 'Desconocido')} 🌍\n\n¡N&W pensando en tu seguridad!"
