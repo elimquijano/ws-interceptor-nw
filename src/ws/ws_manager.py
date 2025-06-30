@@ -290,6 +290,7 @@ class WebSocketManager:
         device_id = device.get("id", None)
         latitude = device.get("latitude", None)
         longitude = device.get("longitude", None)
+        category = device.get("category", "default")
 
         if latitude is None or longitude is None or device_id is None:
             logger.info(
@@ -297,7 +298,11 @@ class WebSocketManager:
             )
             return
 
-        api_url = f"{API_URL_ADMIN_NWPERU}nearby-support?latitude={latitude}&longitude={longitude}"
+        category_params = f"&category=salud" if category == "person" else ""
+        api_url = (
+            f"{API_URL_ADMIN_NWPERU}nearby-support?latitude={latitude}&longitude={longitude}"
+            + category_params
+        )
         user_devices_controller = UserDevicesController()
         try:
             async with aiohttp.ClientSession() as session:

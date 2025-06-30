@@ -334,7 +334,7 @@ class EventNotifierService:
         if associated_users:
             await self.notify_event_to_users(associated_users, event_payload)
 
-        # enviar a whatsapp si son eventos de tipo powerCut y lowBattery
+        # enviar a whatsapp si son eventos de tipo sos, geofenceEnter, geofenceExit
         if event_type in ["sos", "geofenceEnter", "geofenceExit"]:
             device_name = device_info.get("name", "Desconocido")
             for contacto in device_info.get("contactos", []):
