@@ -9,6 +9,7 @@ from src.ws.ws_manager import WebSocketManager
 from src.utils.common import login
 from src.controllers.user_devices_controller import UserDevicesController
 from src.tcp.sender.events import EventNotifierService
+from src.utils.common import get_datetime_now
 
 logger = logging.getLogger(__name__)
 
@@ -363,41 +364,68 @@ class WebSocketServer:
                     pass
 
     async def _update_device_online_status_periodically(self):
-        offline_thresh = timedelta(minutes=10)
-        check_interval = 60
+        time_wait = 10
+        offline_thresh = timedelta(minutes=time_wait)
+        check_interval = 60 * time_wait
         logger.info(
             f"Iniciando tarea periódica de estado online/offline (intervalo: {check_interval}s)."
         )
         try:
             while True:
                 await asyncio.sleep(check_interval)
-                now = datetime.now()
+                now_str = get_datetime_now()
+                try:
+                    # Usamos un nombre de variable diferente para mayor claridad
+                    now_dt = datetime.strptime(now_str, "%Y-%m-%d %H:%M:%S")
+                except (ValueError, TypeError):
+                    logger.error(
+                        f"La función get_datetime_now() devolvió un formato inválido: {now_str}"
+                    )
+                    continue  # Saltar esta iteración si la fecha actual es inválida
+
                 for dev in self.ws_manager.get_all_devices():
-                    last_up = dev.get("lastupdate")
+                    last_up_str = dev.get("lastupdate")
                     cur_stat = dev.get("status")
                     new_stat = None
                     notify_offline = False
-                    if last_up is None:
+
+                    last_up_dt = None  # Reiniciar en cada iteración
+                    if isinstance(last_up_str, str):
+                        try:
+                            last_up_dt = datetime.strptime(
+                                last_up_str, "%Y-%m-%d %H:%M:%S"
+                            )
+                        except ValueError:
+                            logger.warning(
+                                f"Formato de fecha inválido para el dispositivo {dev.get('id')}: '{last_up_str}'"
+                            )
+                            # Si la fecha es inválida, lo tratamos como si no existiera
+                            last_up_dt = None
+
+                    # Ahora la lógica es más limpia
+                    if last_up_dt is None:
+                        # No hay fecha válida, debería estar offline
                         if cur_stat != "offline":
                             new_stat = "offline"
                     else:
-                        try:
-                            last_up_dt = datetime.strptime(last_up, "%Y-%m-%d %H:%M:%S")
-                            if (now - last_up_dt) > offline_thresh:
-                                if cur_stat != "offline":
-                                    new_stat = "offline"
-                                if cur_stat == "online":
-                                    notify_offline = True
-                            else:
-                                if cur_stat != "online":
-                                    new_stat = "online"
-                        except ValueError:
+                        # Hay fecha válida, comparamos
+                        if (now_dt - last_up_dt) > offline_thresh:
+                            # Ha pasado demasiado tiempo, está offline
                             if cur_stat != "offline":
                                 new_stat = "offline"
+                            if cur_stat == "online":
+                                notify_offline = True
+                        else:
+                            # El tiempo es reciente, está online
+                            if cur_stat != "online":
+                                new_stat = "online"
+
                     if new_stat is not None:
                         dev["status"] = new_stat
                         if new_stat == "offline":
                             dev["speed"] = 0.0
+
+                        # Notificar solo si se detecta que acaba de pasar a offline
                         if notify_offline:
                             asyncio.create_task(
                                 self.event_notifier.create_and_notify_custom_event(
