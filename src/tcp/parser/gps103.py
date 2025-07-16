@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timedelta
-
+from src.utils.common import get_datetime_now
 
 class Gps103Decoder:
     def __init__(self, raw_data):
@@ -334,7 +334,7 @@ def decode_gps103(raw_data):
                 {
                     "type": "conexion",
                     "imei": imei_match.group(1),
-                    "datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "datetime": get_datetime_now(),
                 }
             )
             continue
@@ -348,7 +348,7 @@ def decode_gps103(raw_data):
             and "tracker" not in expression
             and not any(event in expression for event in event_type_map)
         ):
-            results.append({"type": "conexion", "imei": special_conn_match.group(1), "datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+            results.append({"type": "conexion", "imei": special_conn_match.group(1), "datetime": get_datetime_now()})
             continue
 
         # Caso 3: Eventos

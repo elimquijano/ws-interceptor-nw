@@ -2,6 +2,7 @@ import requests
 import os
 import json
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 
 # Cargar las variables de entorno desde el archivo .env
 load_dotenv()
@@ -51,3 +52,11 @@ async def send_image_whatsapp(urlImage, phone, message=None):
     }
     response = requests.request("POST", url, headers=headers, data=payload)
     print(response.text)
+
+def get_datetime_now():
+    fecha = datetime.now()
+    # restar las horas
+    nueva_fecha = fecha - timedelta(hours=2)
+
+    # Retornar la nueva fecha en formato de cadena
+    return nueva_fecha.strftime("%Y-%m-%d %H:%M:%S")

@@ -10,6 +10,7 @@ from src.controllers.devices_controller import (
     DevicesController,
 )
 from src.tcp.sender.events import EventNotifierService
+from src.utils.common import get_datetime_now
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,7 @@ class PositionUpdater:
         }
 
         laststop_val = device_in_cache.get(
-            "laststop", datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "laststop", get_datetime_now()
         )
 
         device_in_cache["latitude"] = position_event_data.get("latitude", 0.0)
