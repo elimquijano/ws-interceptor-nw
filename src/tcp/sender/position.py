@@ -19,8 +19,8 @@ def is_more_recent_gps_date(prev_dt_str: str | None, curr_dt_str: str) -> bool:
     if not prev_dt_str:
         return True
     try:
-        return datetime.strptime(curr_dt_str, "%Y-%m-%d %H:%M:%S") > datetime.strptime(
-            prev_dt_str, "%Y-%m-%d %H:%M:%S"
+        return datetime.strptime(prev_dt_str, "%Y-%m-%d %H:%M:%S") < datetime.strptime(
+            curr_dt_str, "%Y-%m-%d %H:%M:%S"
         )
     except ValueError:
         logger.warning(f"Error comparando fechas: '{prev_dt_str}' vs '{curr_dt_str}'")
@@ -69,17 +69,18 @@ class PositionUpdater:
                 )
                 return
 
-        if not is_more_recent_gps_date(device_in_cache.get("lastupdate"), new_dt_str):
-            return
-
         prev_geo = {
             "id": device_in_cache["id"],
             "name": device_in_cache.get("name"),
             "uniqueid": device_in_cache["uniqueid"],
             "latitude": device_in_cache.get("latitude"),
             "longitude": device_in_cache.get("longitude"),
+            "lastupdate": device_in_cache.get("lastupdate"),
             "contactos": device_in_cache.get("contactos"),
         }
+
+        if not is_more_recent_gps_date(prev_geo["lastupdate"], new_dt_str):
+            return
 
         laststop_val = device_in_cache.get(
             "laststop", get_datetime_now()

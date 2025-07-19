@@ -274,13 +274,13 @@ class Gps103Decoder:
 
 def sumar_horas(fecha_str, horas):
     # Convertir la cadena a un objeto datetime
-    fecha = datetime.strptime(fecha_str, '%Y-%m-%d %H:%M:%S')
-    
+    fecha = datetime.strptime(fecha_str, "%Y-%m-%d %H:%M:%S")
+
     # Sumar las horas
     nueva_fecha = fecha + timedelta(hours=horas)
-    
+
     # Retornar la nueva fecha en formato de cadena
-    return nueva_fecha.strftime('%Y-%m-%d %H:%M:%S')
+    return nueva_fecha.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def decode_gps103(raw_data):
@@ -348,7 +348,13 @@ def decode_gps103(raw_data):
             and "tracker" not in expression
             and not any(event in expression for event in event_type_map)
         ):
-            results.append({"type": "conexion", "imei": special_conn_match.group(1), "datetime": get_datetime_now()})
+            results.append(
+                {
+                    "type": "conexion",
+                    "imei": special_conn_match.group(1),
+                    "datetime": get_datetime_now(),
+                }
+            )
             continue
 
         # Caso 3: Eventos
@@ -437,7 +443,9 @@ def decode_gps103(raw_data):
             speed_course_pattern = r",[EW],(\d+\.\d+),(\d+\.\d+)"
             speed_course_match = re.search(speed_course_pattern, expression)
             if speed_course_match:
-                speed = float(speed_course_match.group(1)) * 1.852 # Convertir de nudos a km/h
+                speed = (
+                    float(speed_course_match.group(1)) * 1.852
+                )  # Convertir de nudos a km/h
                 course = float(speed_course_match.group(2))
 
             results.append(
