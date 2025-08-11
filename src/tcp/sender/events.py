@@ -295,7 +295,7 @@ class EventNotifierService:
         if event_type in ["powerCut", "lowBattery"]:
             device_name = device_in_cache.get("name", "Desconocido")
             for contacto in device_in_cache.get("contactos", []):
-                number_phone = "51" + contacto["phone"]
+                number_phone = contacto["phone"]
                 username = contacto["name"]
                 message = (
                     f"⚠️ Alerta {username}!, Corte de energía en su vehículo {device_name} ⚡\n\n¡N&W pensando en tu seguridad!"
@@ -350,7 +350,7 @@ class EventNotifierService:
                 else f"se ha presionado el botón SOS en su vehículo {device_name}, ¿se encuentra bien? 😢"
             )
             for contacto in device_info.get("contactos", []):
-                number_phone = "51" + contacto["phone"]
+                number_phone = contacto["phone"]
                 username = contacto["name"]
                 message = (
                     f"🚨 ¡Alerta {username}!, {sms_sos}\n\n¡N&W pensando en tu seguridad!"

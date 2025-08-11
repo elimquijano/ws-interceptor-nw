@@ -34,7 +34,7 @@ def login(username, password):
 
 async def send_message_whatsapp(phone, message):
     url = HOST_URL_WHATSAPP + "send-message"
-    payload = json.dumps({"number": phone, "message": message})
+    payload = json.dumps({"numbers": phone, "message": message})
     headers = {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + os.getenv("TOKEN_API_WHATSAPP"),
@@ -45,7 +45,7 @@ async def send_message_whatsapp(phone, message):
 
 async def send_image_whatsapp(urlImage, phone, message=None):
     url = HOST_URL_WHATSAPP + "send-media"
-    payload = json.dumps({"number": phone, "caption": message, "mediaUrl": urlImage})
+    payload = json.dumps({"numbers": phone, "caption": message, "mediaUrl": urlImage})
     headers = {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + os.getenv("TOKEN_API_WHATSAPP"),
