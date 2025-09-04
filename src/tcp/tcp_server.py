@@ -76,6 +76,10 @@ class TCPServer:
             for data_dict in decoded_data_list:
                 if isinstance(data_dict, dict):
                     # logger.info(f"{device_original_port} - {data_dict}")  # Log de datos decodificados
+                    if device_original_port == PORT_COBAN:
+                        logger.info(
+                            f"Datos decodificados de Coban (puerto 6001): {data_dict}"
+                        )
                     await self._process_decoded_data(device_original_port, data_dict)
                 else:
                     logger.warning(
@@ -121,9 +125,9 @@ class TCPServer:
                     json_wrapper = json.loads(decoded_json_str)
                     device_port = json_wrapper.get("port")
                     raw_gps_data = json_wrapper.get("data")
-                    if device_port == 6027:
+                    if device_port == PORT_COBAN:
                         logger.info(
-                            f"Datos recibidos de Teltonika (puerto 6027): {raw_gps_data}"
+                            f"Datos recibidos de Coban (puerto 6001): {raw_gps_data}"
                         )
                     if device_port is not None and raw_gps_data is not None:
                         await self._decode_and_process_raw_gps_data(
