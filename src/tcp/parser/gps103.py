@@ -1,6 +1,9 @@
 import re
 from datetime import datetime, timedelta
 from src.utils.common import get_datetime_now
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Gps103Decoder:
     def __init__(self, raw_data):
@@ -283,9 +286,10 @@ def sumar_horas(fecha_str, horas):
     return nueva_fecha.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def decode_gps103(raw_data):
+def decode_gps103(raw_data, conn_type: str)->dict:
     # decoder = Gps103Decoder(raw_data)
     # return decoder.parse()
+    logger.debug(f"Tipo de conexion: {conn_type}")
 
     # Si el string está vacío o no contiene punto y coma, no hay expresiones válidas
     if not raw_data or ";" not in raw_data:

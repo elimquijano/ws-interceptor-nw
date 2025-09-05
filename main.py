@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from src.tcp.tcp_server import TCPServer
+from src.tcp.tcp_server import ListenTCPandUCPServer
 from src.ws.ws_server import WebSocketServer
 from src.utils.logger_config import setup_logging
 
@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 async def main():
-    tcp_server = TCPServer()
+    listen_server = ListenTCPandUCPServer()
     ws_server = WebSocketServer()
 
     # Crear una lista de tareas a ejecutar y limpiar
@@ -18,8 +18,8 @@ async def main():
         logger.info("Iniciando servidores TCP y WebSocket...")
 
         # Crear tareas para cada servidor
-        tcp_task = asyncio.create_task(tcp_server.start(), name="TCPServerTask")
-        server_tasks.append(tcp_task)
+        listen_task = asyncio.create_task(listen_server.start(), name="TCPServerTask")
+        server_tasks.append(listen_task)
 
         ws_task = asyncio.create_task(ws_server.start(), name="WebSocketServerTask")
         server_tasks.append(ws_task)
@@ -52,16 +52,6 @@ async def main():
         if server_tasks:
             await asyncio.gather(*server_tasks, return_exceptions=True)
             logger.info("Tareas de servidor finalizadas o canceladas.")
-
-        # Limpieza específica de recursos de cada servidor
-        # TCPServer cierra su sesión HTTP en su propio finally de start()
-        if tcp_server and tcp_server.event_notifier:
-            # Doble chequeo por si la tarea fue cancelada muy abruptamente
-            # El event_notifier de TCPServer tiene su propia sesión
-            await tcp_server.event_notifier.close_http_session()  # Es idempotente
-            logger.info(
-                "Sesión HTTP del EventNotifier de TCPServer cerrada (o ya estaba cerrada)."
-            )
 
         # WebSocketServer maneja su AppRunner y su EventNotifier
         if ws_server:

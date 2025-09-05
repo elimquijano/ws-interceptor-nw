@@ -1,5 +1,8 @@
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime, timezone
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def format_timestamp(ts_string: str) -> str:
@@ -17,7 +20,7 @@ def format_timestamp(ts_string: str) -> str:
         return None
 
 
-def decode_osmand(fullstring: str) -> list:
+def decode_osmand(fullstring: str, conn_type: str) -> list:
     """
     Parsea una cadena de datos del protocolo OsmAnd de Traccar.
 
@@ -33,6 +36,7 @@ def decode_osmand(fullstring: str) -> list:
               posición decodificada. Retorna una lista vacía si no se pueden
               parsear datos válidos.
     """
+    logger.debug(f"tipo de conexion: {conn_type}")
     positions = []
 
     # La cadena puede contener múltiples peticiones HTTP concatenadas.

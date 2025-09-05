@@ -1,9 +1,10 @@
-# src/tcp/tcp_server.py
 import asyncio
-import json
 import logging
+from typing import Tuple
+import binascii
 from src.tcp.parser.h02 import decode_h02
 from src.tcp.parser.gps103 import decode_gps103
+from src.tcp.parser.teltonika import decode_teltonika
 from src.tcp.parser.osmand import decode_osmand
 from src.tcp.sender.position import PositionUpdater
 from src.tcp.sender.events import EventNotifierService
@@ -11,36 +12,316 @@ from src.ws.ws_manager import WebSocketManager
 
 logger = logging.getLogger(__name__)
 
-PORT_COBAN = 6001
-PORT_SINOTRACK = 6013
-# PORT_TELTONIKA = 6027
-PORT_TRACCAR_CLIENT = 6055
-
 TYPE_CONNECTION = "conexion"
 TYPE_POSITION = "position"
 TYPE_EVENT = "event"
 EVENT_TYPE_UNKNOWN = "unknown"
 
-MAX_MESSAGE_SIZE = 10 * 1024 * 1024
+MAX_MESSAGE_BIT_SIZE = 4096  # 4 KB
+MAX_MESSAGE_TEXT_SIZE = 2048  # 2 KB
 
 
-class TCPServer:
-    def __init__(
-        self, host: str = "0.0.0.0", port: int = 7005
-    ):  # Puerto del broker JSON
-        self.host = host
+class UTF8Server:
+    def __init__(self, port=9013):
         self.port = port
-        self.ws_manager = WebSocketManager()  # Accede al singleton
+        self.running = False
+        self.tcp_server = None
+        self.udp_transport = None
+        self.udp_protocol = None
+        self._data_handler = None
+
+    async def start(self):
+        """Inicia el servidor TCP y UDP de forma asíncrona"""
+        self.running = True
+
+        print(f"Servidor UTF-8 iniciando en puerto {self.port}")
+
+        # Crear tareas para TCP y UDP
+        tcp_task = asyncio.create_task(self._start_tcp_server())
+        udp_task = asyncio.create_task(self._start_udp_server())
+
+        print(f"Escuchando TCP y UDP...")
+
+        # Esperar a que ambos servidores estén ejecutándose
+        try:
+            await asyncio.gather(tcp_task, udp_task)
+        except asyncio.CancelledError:
+            print(f"Servidor cancelado")
+        except Exception as e:
+            print(f"Error en servidor: {e}")
+
+    async def _start_tcp_server(self):
+        """Inicia el servidor TCP"""
+        try:
+            self.tcp_server = await asyncio.start_server(
+                self._handle_tcp_client, "0.0.0.0", self.port
+            )
+
+            async with self.tcp_server:
+                await self.tcp_server.serve_forever()
+
+        except Exception as e:
+            print(f"Error en servidor TCP: {e}")
+
+    async def _handle_tcp_client(self, reader, writer):
+        """Maneja conexiones TCP de clientes"""
+        client_address = writer.get_extra_info("peername")
+        print(f"TCP - Nueva conexión desde {client_address}")
+
+        try:
+            while self.running:
+                # Leer datos del cliente
+                data = await reader.read(MAX_MESSAGE_TEXT_SIZE)
+                if not data:
+                    break
+
+                # Decodificar en UTF-8 e imprimir
+                try:
+                    message = data.decode("utf-8")
+                    if hasattr(self, "_data_handler") and self._data_handler:
+                        self._data_handler(message, client_address, "tcp")
+                    print(f"TCP de {client_address}: {repr(message)}")
+                except UnicodeDecodeError:
+                    print(f"TCP de {client_address}: {data.hex()} (no UTF-8)")
+
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            print(f"Error TCP cliente {client_address}: {e}")
+        finally:
+            writer.close()
+            await writer.wait_closed()
+            print(f"TCP - Conexión cerrada desde {client_address}")
+
+    async def _start_udp_server(self):
+        """Inicia el servidor UDP"""
+        try:
+            loop = asyncio.get_running_loop()
+
+            # Crear protocolo UDP
+            self.udp_transport, self.udp_protocol = await loop.create_datagram_endpoint(
+                lambda: UTF8UDPServer(self), local_addr=("0.0.0.0", self.port)
+            )
+
+            # Mantener el servidor UDP ejecutándose
+            while self.running:
+                await asyncio.sleep(1)
+
+        except Exception as e:
+            print(f"Error en servidor UDP: {e}")
+        finally:
+            if self.udp_transport:
+                self.udp_transport.close()
+
+    async def stop(self):
+        """Detiene el servidor"""
+        print(f"Deteniendo servidor...")
+        self.running = False
+
+        # Cerrar servidor TCP
+        if self.tcp_server:
+            self.tcp_server.close()
+            await self.tcp_server.wait_closed()
+
+        # Cerrar transporte UDP
+        if self.udp_transport:
+            self.udp_transport.close()
+
+        print(f"Servidor detenido")
+
+
+class UTF8UDPServer(asyncio.DatagramProtocol):
+    """Protocolo para manejar datos UDP"""
+
+    def __init__(self, server):
+        self.server = server
+
+    def datagram_received(self, data, addr):
+        """Maneja datos UDP recibidos"""
+        try:
+            message = data.decode("utf-8")
+            if hasattr(self.server, "_data_handler") and self.server._data_handler:
+                self.server._data_handler(message, addr, "udp")
+            print(f"UDP de {addr}: {repr(message)}")
+        except UnicodeDecodeError:
+            print(f"UDP de {addr}: {data.hex()} (no UTF-8)")
+
+
+class BinaryServer:
+    def __init__(self, port: int = 9027):
+        self.port = port
+        self.running = False
+        self.tcp_server = None
+        self.udp_transport = None
+        self.udp_protocol = None
+        self._data_handler = None
+
+    async def handle_tcp_client(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ):
+        """Handle TCP client connection asynchronously"""
+        address = writer.get_extra_info("peername")
+        print(f"TCP client connected from {address}")
+
+        try:
+            while self.running:
+                # Receive data
+                data = await reader.read(MAX_MESSAGE_BIT_SIZE)
+                if not data:
+                    break
+                if hasattr(self, "_data_handler") and self._data_handler:
+                    self._data_handler(data, address, "tcp")
+                print(f"TCP received {len(data)} bytes from {address}")
+                print(f"Raw data: {binascii.hexlify(data).decode()}")
+
+        except asyncio.CancelledError:
+            print(f"TCP client {address} connection cancelled")
+        except Exception as e:
+            print(f"Error handling TCP client {address}: {e}")
+        finally:
+            writer.close()
+            await writer.wait_closed()
+            print(f"TCP client {address} disconnected")
+
+    async def _start_tcp_server(self):
+        """Start TCP server"""
+        try:
+            self.tcp_server = await asyncio.start_server(
+                self.handle_tcp_client, "0.0.0.0", self.port
+            )
+
+            print(f"TCP server started on port {self.port}")
+
+            async with self.tcp_server:
+                await self.tcp_server.serve_forever()
+
+        except asyncio.CancelledError:
+            print("TCP server cancelled")
+        except Exception as e:
+            print(f"Error in TCP server: {e}")
+
+    async def _start_udp_server(self):
+        """Start UDP server"""
+        try:
+            loop = asyncio.get_running_loop()
+
+            # Create UDP server
+            self.udp_transport, self.udp_protocol = await loop.create_datagram_endpoint(
+                lambda: BinaryUDPServer(self), local_addr=("0.0.0.0", self.port)
+            )
+
+            print(f"UDP server started on port {self.port}")
+
+            # Keep UDP server running
+            while self.running:
+                await asyncio.sleep(1)
+
+        except asyncio.CancelledError:
+            print("UDP server cancelled")
+        except Exception as e:
+            print(f"Error in UDP server: {e}")
+        finally:
+            if self.udp_transport:
+                self.udp_transport.close()
+
+    def handle_udp_data(self, data: bytes, address: Tuple[str, int]):
+        """Handle UDP data (called by UDP protocol)"""
+        try:
+            if hasattr(self, "_data_handler") and self._data_handler:
+                self._data_handler(data, address, "udp")
+            print(f"UDP received {len(data)} bytes from {address}")
+            print(f"Raw data: {binascii.hexlify(data).decode()}")
+
+        except Exception as e:
+            print(f"Error handling UDP data: {e}")
+
+    async def start(self):
+        """Start the server asynchronously"""
+        self.running = True
+
+        print(f"Teltonika server starting on port {self.port}")
+        print("Listening for TCP and UDP connections...")
+
+        # Create tasks for TCP and UDP servers
+        tcp_task = asyncio.create_task(self._start_tcp_server())
+        udp_task = asyncio.create_task(self._start_udp_server())
+
+        try:
+            # Wait for both servers to run
+            await asyncio.gather(tcp_task, udp_task)
+        except asyncio.CancelledError:
+            print("Server cancelled")
+        except KeyboardInterrupt:
+            print("Server shutdown requested")
+        except Exception as e:
+            print(f"Server error: {e}")
+        finally:
+            await self.stop()
+
+    async def stop(self):
+        """Stop the server"""
+        print("Stopping Teltonika server...")
+        self.running = False
+
+        # Close TCP server
+        if self.tcp_server:
+            self.tcp_server.close()
+            await self.tcp_server.wait_closed()
+
+        # Close UDP transport
+        if self.udp_transport:
+            self.udp_transport.close()
+
+        print("Teltonika server stopped")
+
+
+class BinaryUDPServer(asyncio.DatagramProtocol):
+    """UDP Protocol handler for Teltonika server"""
+
+    def __init__(self, server: BinaryServer):
+        self.server = server
+
+    def datagram_received(self, data: bytes, addr: Tuple[str, int]):
+        """Handle received UDP datagram"""
+        self.server.handle_udp_data(data, addr)
+
+
+class ListenTCPandUCPServer:
+    def __init__(self, host: str = "0.0.0.0"):
+        self.host = host
+        self.ws_manager = WebSocketManager()
         self.event_notifier = EventNotifierService(self.ws_manager)
         self.position_updater = PositionUpdater(self.ws_manager, self.event_notifier)
-
-        self.protocol_decoders = {
-            PORT_COBAN: decode_gps103,  # Usa los nombres de función de tus parsers
-            PORT_SINOTRACK: decode_h02,
-            PORT_TRACCAR_CLIENT: decode_osmand,
+        self.protocol_ports = {
+            5001: {
+                "name": "GPS103Protocol",
+                "device": "Coban",
+                "decoder": decode_gps103,
+                "type_data": "utf8",
+            },
+            6013: {
+                "name": "H02Protocol",
+                "device": "Sinotrack",
+                "decoder": decode_h02,
+                "type_data": "utf8",
+            },
+            6027: {
+                "name": "TeltonikaProtocol",
+                "device": "Teltonika",
+                "decoder": decode_teltonika,
+                "type_data": "binary",
+            },
+            6055: {
+                "name": "OsmandProtocol",
+                "device": "Traccar Client",
+                "decoder": decode_osmand,
+                "type_data": "utf8",
+            },
         }
+        self.running_tasks = []
+        self.server_instances = {}
         logger.info(
-            f"TCPServer inicializado para JSON broker en {self.host}:{self.port}."
+            f"Servidor de escucha TCP y UDP inicializado para puertos: {list(self.protocol_ports.keys())}"
         )
 
     async def _process_decoded_data(
@@ -61,25 +342,21 @@ class TCPServer:
                 f"Dato sin 'type' de puerto {device_original_port}: {data_payload}"
             )
 
-    async def _decode_and_process_raw_gps_data(
-        self, device_original_port: int, raw_message_data: str
+    async def _decode_and_process_data(
+        self, device_original_port: int, data: bytes | str, connection_type: str = "tcp"
     ):
-        decoder_function = self.protocol_decoders.get(device_original_port)
-        if not decoder_function:
+        protocol_port = self.protocol_ports.get(device_original_port)
+        if not protocol_port:
             logger.warning(
                 f"No hay decodificador para puerto original {device_original_port}."
             )
             return
+
         try:
-            # Tus parsers devuelven una lista de dicts
-            decoded_data_list = decoder_function(raw_message_data)
+            # Pasar data tal como llega al decoder junto con el tipo de conexión
+            decoded_data_list = protocol_port["decoder"](data, connection_type)
             for data_dict in decoded_data_list:
                 if isinstance(data_dict, dict):
-                    # logger.info(f"{device_original_port} - {data_dict}")  # Log de datos decodificados
-                    if device_original_port == PORT_COBAN:
-                        logger.info(
-                            f"Datos decodificados de Coban (puerto 6001): {data_dict}"
-                        )
                     await self._process_decoded_data(device_original_port, data_dict)
                 else:
                     logger.warning(
@@ -87,109 +364,72 @@ class TCPServer:
                     )
         except Exception as e:
             logger.error(
-                f"Error decodificando datos para puerto {device_original_port} con {decoder_function.__name__}: {e}",
+                f"Error decodificando datos para puerto {device_original_port} con {protocol_port['decoder'].__name__}: {e}",
                 exc_info=True,
             )
-            logger.debug(
-                f"Datos crudos (GPS) que causaron error: {raw_message_data[:500]}"
-            )
-
-    async def handle_client_connection(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ):
-        peername = writer.get_extra_info("peername")
-        logger.debug(f"Nueva conexión TCP (JSON broker) de: {peername}")
-        full_data_buffer = bytearray()
-        try:
-            while True:
-                data_chunk = await reader.read(4096)
-                if not data_chunk:
-                    if not full_data_buffer:
-                        logger.debug(f"Conexión de {peername} cerrada sin datos.")
-                    break
-                full_data_buffer.extend(data_chunk)
-                if len(full_data_buffer) > MAX_MESSAGE_SIZE:
-                    logger.error(
-                        f"Mensaje de {peername} excede MAX_MESSAGE_SIZE. Descartando y cerrando."
-                    )
-                    full_data_buffer.clear()
-                    writer.close()
-                    await writer.wait_closed()
-                    return
-
-            if full_data_buffer:
-                try:
-                    decoded_json_str = full_data_buffer.decode(
-                        "utf-8", errors="replace"
-                    )
-                    json_wrapper = json.loads(decoded_json_str)
-                    device_port = json_wrapper.get("port")
-                    raw_gps_data = json_wrapper.get("data")
-                    if device_port == PORT_COBAN:
-                        logger.info(
-                            f"Datos recibidos de Coban (puerto 6001): {raw_gps_data}"
-                        )
-                    if device_port is not None and raw_gps_data is not None:
-                        await self._decode_and_process_raw_gps_data(
-                            device_port, raw_gps_data
-                        )
-                    else:
-                        logger.error(
-                            f"JSON de {peername} sin 'port' o 'data'. Datos: {decoded_json_str[:200]}..."
-                        )
-                except json.JSONDecodeError as e:
-                    logger.error(
-                        f"JSON inválido (wrapper) de {peername}: {e}. Datos: {full_data_buffer.decode('utf-8', errors='replace')[:500]}"
-                    )
-                except UnicodeDecodeError as e:
-                    logger.error(
-                        f"Error de decodificación Unicode (wrapper) de {peername}: {e}. Datos (hex): {full_data_buffer[:256].hex()}"
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"Error procesando JSON wrapper de {peername}: {e}",
-                        exc_info=True,
-                    )
-        except ConnectionResetError:
-            logger.warning(f"Conexión reseteada por {peername}")
-        except asyncio.CancelledError:
-            logger.info(f"Tarea handle_client para {peername} cancelada.")
-            raise
-        except Exception as e:
-            logger.error(
-                f"Excepción inesperada manejando {peername}: {e}", exc_info=True
-            )
-        finally:
-            if not writer.is_closing():
-                writer.close()
-                await writer.wait_closed()
-            logger.debug(f"Conexión con {peername} finalizada.")
+            logger.info(f"Datos crudos que causaron error: {str(data)[:500]}")
 
     async def start(self):
-        server = await asyncio.start_server(
-            self.handle_client_connection, self.host, self.port
-        )
-        addr = (
-            server.sockets[0].getsockname()
-            if server.sockets
-            else (self.host, self.port)
-        )
-        logger.info(f"Servidor TCP (JSON broker) escuchando en {addr[0]}:{addr[1]}")
         try:
-            async with server:
-                await server.serve_forever()
-        except asyncio.CancelledError:
-            logger.info("Servidor TCP (JSON broker) cancelado.")
-        except Exception as e:
-            logger.critical(
-                f"Error crítico en bucle principal del servidor TCP: {e}", exc_info=True
-            )
-        finally:
-            logger.info("Servidor TCP (JSON broker) finalizando...")
-            if self.event_notifier:
-                await self.event_notifier.close_http_session()
-            if self.position_updater:
-                await self.position_updater._close_internal_controllers()
+            self.running_tasks = []
+            self.server_instances = {}
+
+            for port, protocol_info in self.protocol_ports.items():
+                if protocol_info["type_data"] == "utf8":
+                    server_instance = UTF8Server(port)
+                    # Inyectar el handler
+                    server_instance._data_handler = self._create_handler(port)
+                elif protocol_info["type_data"] == "binary":
+                    server_instance = BinaryServer(port)
+                    # Inyectar el handler
+                    server_instance._data_handler = self._create_handler(port)
+
+                self.server_instances[port] = server_instance
+                task = asyncio.create_task(server_instance.start())
+                self.running_tasks.append(task)
+
             logger.info(
-                "Servidor TCP (JSON broker) finalizado y recursos internos limpiados."
+                f"Iniciados servidores en puertos: {list(self.protocol_ports.keys())}"
             )
+
+            # Esperar a que todos los servidores estén corriendo
+            await asyncio.gather(*self.running_tasks)
+
+        except Exception as e:
+            logger.error(f"Error iniciando servidores: {e}")
+            await self.stop()
+
+    def _create_handler(self, port):
+        """Crear handler para evitar problemas con closures"""
+
+        def handler(data, addr, connection_type):
+            return asyncio.create_task(
+                self._decode_and_process_data(port, data, connection_type)
+            )
+
+        return handler
+
+    async def stop(self):
+        try:
+            logger.info("Deteniendo servidores...")
+
+            # Detener todas las instancias de servidor
+            for server_instance in self.server_instances.values():
+                await server_instance.stop()
+
+            # Cancelar todas las tareas
+            for task in self.running_tasks:
+                if not task.done():
+                    task.cancel()
+
+            # Esperar a que las tareas se cancelen
+            if self.running_tasks:
+                await asyncio.gather(*self.running_tasks, return_exceptions=True)
+
+            logger.info("Todos los servidores detenidos")
+
+        except Exception as e:
+            logger.error(f"Error deteniendo servidores: {e}")
+        finally:
+            self.running_tasks = []
+            self.server_instances = {}

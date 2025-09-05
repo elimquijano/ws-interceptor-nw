@@ -1,6 +1,8 @@
 import re
 from datetime import datetime
+import logging
 
+logger = logging.getLogger(__name__)
 
 class H02ProtocolDecoder:
     def __init__(self, raw_data):
@@ -182,9 +184,10 @@ class H02ProtocolDecoder:
         }
 
 
-def decode_h02(full_string):
+def decode_h02(full_string, conn_type: str) -> dict:
     # decoder = H02ProtocolDecoder(full_string)
     # return decoder.parse()
+    logger.debug(f"Connect type: {conn_type}")
 
     results = []
 
