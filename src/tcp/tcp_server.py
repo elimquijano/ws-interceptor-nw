@@ -293,25 +293,25 @@ class ListenTCPandUCPServer:
         self.event_notifier = EventNotifierService(self.ws_manager)
         self.position_updater = PositionUpdater(self.ws_manager, self.event_notifier)
         self.protocol_ports = {
-            5001: {
+            9001: {
                 "name": "GPS103Protocol",
                 "device": "Coban",
                 "decoder": decode_gps103,
                 "type_data": "utf8",
             },
-            6013: {
+            9013: {
                 "name": "H02Protocol",
                 "device": "Sinotrack",
                 "decoder": decode_h02,
                 "type_data": "utf8",
             },
-            6027: {
+            9027: {
                 "name": "TeltonikaProtocol",
                 "device": "Teltonika",
                 "decoder": decode_teltonika,
                 "type_data": "binary",
             },
-            6055: {
+            9055: {
                 "name": "OsmandProtocol",
                 "device": "Traccar Client",
                 "decoder": decode_osmand,
